@@ -20,8 +20,8 @@ from app.tools.krisha import scrape_krisha_listings
 
 logger = logging.getLogger(__name__)
 
-# Resolve path relative to this file so it works regardless of cwd
-DATA_DIR = Path(__file__).resolve().parents[3] / "data"
+# Resolve path relative to project root so it works in any environment (local/Render)
+DATA_DIR = Path(__file__).resolve().parent.parent.parent / "data"
 RENT_CSV  = DATA_DIR / "rent_data.csv"
 
 # Almaty district → rough centre lat/lng for synthetic distance model

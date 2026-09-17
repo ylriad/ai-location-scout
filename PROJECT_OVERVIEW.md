@@ -372,7 +372,10 @@ python main.py
 ```
 Open your browser at `http://localhost:8000`.
 
-### Cloud Deployment (Render, Railway, Fly.io)
-* **Start Command**: `python main.py` or `uvicorn app.main:app --host 0.0.0.0 --port $PORT`
-* **Port**: Bound dynamically via the `PORT` environment variable.
-* **Volume**: Persistent disk recommended for `data/` to retain SQLite user accounts and search logs across deployments.
+### Cloud Deployment (Render)
+* **One-Click Blueprint**: Uses native [`render.yaml`](file:///c:/Antigravity/location_scout/render.yaml) for automatic configuration.
+* **Build Command**: `pip install --upgrade pip && pip install -r requirements.txt`
+* **Start Command**: `python main.py`
+* **Python Runtime**: `3.11.9` specified in [`.python-version`](file:///c:/Antigravity/location_scout/.python-version)
+* **Port Handling**: Uvicorn binds dynamically to `0.0.0.0` and `$PORT`.
+* **Persistence**: SQLite runs out of the box in `data/location_scout.db`; mount a persistent disk at `data/` if permanent account storage across cold restarts is desired on paid tiers.

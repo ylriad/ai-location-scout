@@ -1,0 +1,24 @@
+services:
+  - type: web
+    name: ai-location-scout
+    runtime: python
+    plan: free
+    buildCommand: pip install --upgrade pip && pip install -r requirements.txt
+    startCommand: python main.py
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.9
+      - key: ENVIRONMENT
+        value: prod
+      - key: LOG_LEVEL
+        value: INFO
+      - key: JWT_SECRET
+        generateValue: true
+      - key: TWOGIS_API_KEY
+        sync: false
+      - key: APIFY_API_TOKEN
+        sync: false
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: GOOGLE_MAPS_API_KEY
+        sync: false

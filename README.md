@@ -30,6 +30,27 @@ py -3.13 main.py
 
 ---
 
+## 🚀 Deploy to Render
+
+This repository includes a `render.yaml` Blueprint file for one-click, zero-config deployment on [Render](https://render.com).
+
+### Option 1: Blueprint Deployment (Recommended)
+1. Go to your [Render Dashboard](https://dashboard.render.com).
+2. Click **New +** → **Blueprint**.
+3. Select this repository (`ylriad/business-ai-agent` or `ai-location-scout`).
+4. Render will automatically configure the build and start commands, Python 3.11.9 runtime, and generate a secure `JWT_SECRET`.
+5. Click **Apply**.
+
+### Option 2: Manual Web Service
+- **Runtime**: Python
+- **Build Command**: `pip install --upgrade pip && pip install -r requirements.txt`
+- **Start Command**: `python main.py`
+- **Environment Variables**:
+  - `PYTHON_VERSION`: `3.11.9`
+  - `ENVIRONMENT`: `prod`
+
+---
+
 ## Project Structure
 
 ```
