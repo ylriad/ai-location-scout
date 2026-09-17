@@ -1,6 +1,8 @@
-# 🏙️ AI Business Location Scout
+# 🏙️ AI Business & Residential Location Scout
 
-An intelligent FastAPI agent that evaluates commercial real-estate locations using
+> 📖 **Comprehensive Documentation**: See [PROJECT_OVERVIEW.md](file:///c:/Antigravity/location_scout/PROJECT_OVERVIEW.md) for the full end-to-end breakdown of the current version (v1.0.0), including the Student/Personal Housing Scout, SQLite authentication & demo gating, 2GIS spatial maps, Krisha.kz scraper, and HeadHunter talent sourcing.
+
+An intelligent FastAPI agent that evaluates commercial real-estate and residential housing locations using
 foot-traffic data, competitor analysis, rent estimates, and demographic fit — then
 generates an AI-written investment report via Claude.
 

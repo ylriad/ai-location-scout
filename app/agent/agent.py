@@ -110,7 +110,7 @@ class LocationScoutAgent:
     def __init__(self, top_n: int = DEFAULT_TOP_N):
         self.top_n = top_n
 
-    async def _get_live_candidates(self, city: str, business_type: str, limit: int = 10, area_size: int = 50) -> list[dict]:
+    async def _get_live_candidates(self, city: str, business_type: str, limit: int = 10, area_size: int = 50, rent_or_buy: str = "rent") -> list[dict]:
         """Fetches dynamic real estate candidates directly from Krisha listings."""
         import logging
         logger = logging.getLogger(__name__)
@@ -119,7 +119,7 @@ class LocationScoutAgent:
         from app.tools.krisha import scrape_krisha_listings
         from app.tools.rent import ALMATY_DISTRICTS, CBD_LAT, CBD_LNG, _match_district
         
-        listings = await scrape_krisha_listings(city, business_type, limit=limit, area_size=area_size)
+        listings = await scrape_krisha_listings(city, business_type, limit=limit, area_size=area_size, rent_or_buy=rent_or_buy)
         
         if not listings:
             logger.warning("Scraping Krisha produced no listings. Falling back to static Almaty candidates.")
@@ -149,17 +149,19 @@ class LocationScoutAgent:
             
         return candidates
 
-    async def run(self, request: ScoutRequest) -> ScoutResult:
+    async def run(self, request: ScoutRequest, is_demo: bool = False) -> ScoutResult:
         """
         Evaluate all candidates for the requested city and return top-N results.
         """
         logger.info(
-            "LocationScoutAgent starting | city=%s, type=%s, budget=%s",
-            request.city, request.business_type, request.budget,
+            "LocationScoutAgent starting | city=%s, type=%s, budget=%s, is_demo=%s",
+            request.city, request.business_type, request.budget, is_demo,
         )
 
         # ── Step 1: Fetch dynamic candidates from Krisha ──────────────────
-        candidates = await self._get_live_candidates(request.city, request.business_type, limit=8, area_size=request.area_size)
+        candidates = await self._get_live_candidates(
+            request.city, request.business_type, limit=8, area_size=request.area_size, rent_or_buy=request.rent_or_buy
+        )
 
         # ── Step 2: Evaluate all candidates concurrently ──────────────────
         tasks = [
@@ -184,20 +186,27 @@ class LocationScoutAgent:
             key=lambda r: r["score_result"].get("final_score", 0),
             reverse=True,
         )
-        top_n = results[: self.top_n]
-
-        # ── Step 4: Generate narrative report ─────────────────────────────
-        from app.tools.report import generate_report
-        report_result = await generate_report(
-            top3_locations  = top_n,
-            business_type   = request.business_type,
-            city            = request.city,
-            budget          = request.budget,
-            area_size       = request.area_size,
-        )
+        
+        if is_demo:
+            top_n = results[:1]
+            report_md = "# 🔒 AI Investment Report Locked\nSign in to unlock the full investor-ready location report, foot-traffic analytics, competitor gap metrics, and detailed demographic profiles."
+            report_source = "template"
+        else:
+            top_n = results[: self.top_n]
+            # ── Step 4: Generate narrative report ─────────────────────────────
+            from app.tools.report import generate_report
+            report_result = await generate_report(
+                top3_locations  = top_n,
+                business_type   = request.business_type,
+                city            = request.city,
+                budget          = request.budget,
+                area_size       = request.area_size,
+            )
+            report_md = report_result["report_md"]
+            report_source = report_result["source"]
 
         # ── Step 5: Serialise to Pydantic models ──────────────────────────
-        location_results = [_to_location_result(r) for r in top_n]
+        location_results = [_to_location_result(r, is_demo=is_demo) for r in top_n]
 
         logger.info(
             "LocationScoutAgent complete | top score=%.1f",
@@ -210,18 +219,46 @@ class LocationScoutAgent:
             budget          = request.budget,
             area_size       = request.area_size,
             top_locations   = location_results,
-            report_md       = report_result["report_md"],
-            report_source   = report_result["source"],
+            report_md       = report_md,
+            report_source   = report_source,
             total_evaluated = len(results),
         )
 
 
-def _to_location_result(r: dict) -> LocationResult:
+def _to_location_result(r: dict, is_demo: bool = False) -> LocationResult:
     sr = r.get("score_result", {})
     rr = r.get("rent_result",  {})
     tr = r.get("traffic_result", {})
     cr = r.get("competitor_result", {})
     bd = sr.get("breakdown", {})
+
+    if is_demo:
+        return LocationResult(
+            id                    = r.get("id", ""),
+            name                  = r.get("name", ""),
+            address               = r.get("address", ""),
+            district              = r.get("district", rr.get("district", "")),
+            lat                   = r["lat"],
+            lng                   = r["lng"],
+            zone                  = r.get("zone", ""),
+            krisha_link           = r.get("krisha_link", ""),
+            final_score           = sr.get("final_score", 0.0),
+            score_label           = sr.get("label", ""),
+            traffic_score         = "locked",
+            competitor_gap        = "locked",
+            rent_affordable       = "locked",
+            demographics_fit      = "locked",
+            avg_rent_kzt          = "locked",
+            min_rent_kzt          = "locked",
+            max_rent_kzt          = "locked",
+            competitor_count      = "locked",
+            competitors_nearby    = [],
+            traffic_source        = "locked",
+            est_monthly_revenue   = "locked",
+            est_monthly_profit    = "locked",
+            est_annual_roi_pct    = "locked",
+            score_explanation     = "Sign in to unlock full detailed ratings.",
+        )
 
     # ROI quick-calc  (mirrors the template formula)
     traffic_score  = tr.get("score", 50)

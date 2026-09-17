@@ -5,7 +5,22 @@ Pydantic schemas for request/response validation.
 from __future__ import annotations
 
 from typing import Any
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field
+
+
+# ── Auth Requests ─────────────────────────────────────────────────────────────
+
+class RegisterRequest(BaseModel):
+    name:         str   = Field(..., description="User's full name")
+    phone_number: str   = Field(..., description="User's contact phone number")
+    email:        str   = Field(..., description="User's login email address")
+    password:     str   = Field(..., description="Secure password")
+    consent:      bool  = Field(..., description="Consent to terms and privacy note")
+
+
+class LoginRequest(BaseModel):
+    email:    str   = Field(..., description="Registered email address")
+    password: str   = Field(..., description="Account password")
 
 
 # ── Request ──────────────────────────────────────────────────────────────────
@@ -36,6 +51,10 @@ class ScoutRequest(BaseModel):
         le=10,
         description="Number of top locations to return.",
     )
+    rent_or_buy:     str   = Field(
+        default="rent",
+        description="'rent' or 'buy'",
+    )
 
     model_config = {
         "json_schema_extra": {
@@ -45,9 +64,20 @@ class ScoutRequest(BaseModel):
                 "budget":          5000000,
                 "area_size":       50,
                 "top_n":           3,
+                "rent_or_buy":     "rent",
             }
         }
     }
+
+
+class PersonalScoutRequest(BaseModel):
+    rent_or_buy: str   = Field(default="rent", description="'rent' or 'buy'")
+    destination: str   = Field(default="KBTU, Almaty", description="Destination address or landmark")
+    price_min:   float = Field(default=100000, gt=0)
+    price_max:   float = Field(default=500000, gt=0)
+    city:        str   = Field(default="Almaty")
+    area_size:   int   = Field(default=50, description="Area category (20, 50, 100, 200)")
+    top_n:       int   = Field(default=3, ge=1, le=10)
 
 
 # ── Sub-models ────────────────────────────────────────────────────────────────
@@ -62,33 +92,40 @@ class LocationResult(BaseModel):
     zone:                str
     krisha_link:         str | None = None
     
-    # Scores (0-100)
+    # Scores (0-100) or locked values for anonymous visitors
     final_score:         float
     score_label:         str
-    traffic_score:       float
-    competitor_gap:      float
-    rent_affordable:     float
-    demographics_fit:    float
+    traffic_score:       Any = None
+    competitor_gap:      Any = None
+    rent_affordable:     Any = None
+    demographics_fit:    Any = None
 
     # Rent
-    avg_rent_kzt:        float
-    min_rent_kzt:        float
-    max_rent_kzt:        float
+    avg_rent_kzt:        Any = None
+    min_rent_kzt:        Any = None
+    max_rent_kzt:        Any = None
 
     # Competitors
-    competitor_count:    int
+    competitor_count:    Any = None
     competitors_nearby:  list[dict[str, Any]] = Field(default_factory=list)
 
     # Traffic metadata
-    traffic_source:      str
+    traffic_source:      str | None = None
 
     # ROI estimates
-    est_monthly_revenue: float
-    est_monthly_profit:  float
-    est_annual_roi_pct:  float
+    est_monthly_revenue: Any = None
+    est_monthly_profit:  Any = None
+    est_annual_roi_pct:  Any = None
 
     # Verbose
     score_explanation:   str
+
+    # Personal Flow specific fields (optional)
+    convenience_score:   Any = None
+    safety_score:        Any = None
+    lifestyle_score:     Any = None
+    distance_km:         float | None = None
+    directions_url:      str | None = None
 
 
 # ── Response ──────────────────────────────────────────────────────────────────
@@ -104,6 +141,17 @@ class ScoutResult(BaseModel):
     total_evaluated:  int
 
 
+class PersonalScoutResult(BaseModel):
+    rent_or_buy:      str
+    destination:      str
+    price_min:        float
+    price_max:        float
+    city:             str
+    area_size:        int
+    top_locations:    list[LocationResult]
+    total_evaluated:  int
+
+
 # ── Health ────────────────────────────────────────────────────────────────────
 
 class HealthResponse(BaseModel):
@@ -112,7 +160,7 @@ class HealthResponse(BaseModel):
     api:     str = "Location Scout API"
 
 
-# ── Individual tool request/response pairs (used by /tools/* endpoints) ──────
+# ── Individual tool request/response pairs ────────────────────────────────────
 
 class TrafficRequest(BaseModel):
     lat: float
