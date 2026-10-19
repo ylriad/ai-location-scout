@@ -144,16 +144,8 @@ class PersonalScoutAgent:
             final_score = round(final_score, 1)
             
             # Determine score label
-            if final_score >= 85:
-                label = "Excellent"
-            elif final_score >= 70:
-                label = "Good"
-            elif final_score >= 55:
-                label = "Fair"
-            elif final_score >= 40:
-                label = "Below average"
-            else:
-                label = "Poor"
+            from app.tools.scoring import _label
+            label = _label(final_score, request.lang)
                 
             return {
                 **c,
@@ -174,22 +166,29 @@ class PersonalScoutAgent:
         limit_n = 1 if is_demo else self.top_n
         top_n_results = results[:limit_n]
 
+        from app.i18n.terms import translate_location_name, translate_address, get_display_label
+
         location_results = []
         for r in top_n_results:
             # Build 2GIS deep link for directions:
             # https://2gis.ru/routeSearch/rsType/pedestrian/from/<lon>,<lat>/to/<lon>,<lat>
             directions_url = f"https://2gis.ru/routeSearch/rsType/pedestrian/from/{r['lng']},{r['lat']}/to/{dest_lng},{dest_lat}"
             
+            loc_name = translate_location_name(r.get("name", ""), request.lang)
+            loc_address = translate_address(r.get("address", ""), request.lang)
+            loc_district = get_display_label(r.get("district", ""), "district", request.lang)
+            loc_zone = get_display_label(r.get("zone", ""), "zone", request.lang)
+
             # If demo, lock details and hide real ratings!
             if is_demo:
                 loc_res = LocationResult(
                     id=r["id"],
-                    name=r["name"],
-                    address=r["address"],
-                    district=r["district"],
+                    name=loc_name,
+                    address=loc_address,
+                    district=loc_district,
                     lat=r["lat"],
                     lng=r["lng"],
-                    zone=r["zone"],
+                    zone=loc_zone,
                     krisha_link=r["krisha_link"],
                     final_score=r["final_score"],
                     score_label=r["label"],
@@ -214,12 +213,12 @@ class PersonalScoutAgent:
                 # Full access
                 loc_res = LocationResult(
                     id=r["id"],
-                    name=r["name"],
-                    address=r["address"],
-                    district=r["district"],
+                    name=loc_name,
+                    address=loc_address,
+                    district=loc_district,
                     lat=r["lat"],
                     lng=r["lng"],
-                    zone=r["zone"],
+                    zone=loc_zone,
                     krisha_link=r["krisha_link"],
                     final_score=r["final_score"],
                     score_label=r["label"],
@@ -246,7 +245,7 @@ class PersonalScoutAgent:
             destination=request.destination,
             price_min=request.price_min,
             price_max=request.price_max,
-            city=request.city,
+            city=get_display_label(request.city, "city", request.lang),
             area_size=request.area_size,
             top_locations=location_results,
             total_evaluated=len(results)

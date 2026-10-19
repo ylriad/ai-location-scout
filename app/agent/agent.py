@@ -201,21 +201,26 @@ class LocationScoutAgent:
                 city            = request.city,
                 budget          = request.budget,
                 area_size       = request.area_size,
+                lang            = request.lang,
             )
             report_md = report_result["report_md"]
             report_source = report_result["source"]
 
         # ── Step 5: Serialise to Pydantic models ──────────────────────────
-        location_results = [_to_location_result(r, is_demo=is_demo) for r in top_n]
+        location_results = [_to_location_result(r, is_demo=is_demo, lang=request.lang) for r in top_n]
 
         logger.info(
             "LocationScoutAgent complete | top score=%.1f",
             top_n[0]["score_result"]["final_score"] if top_n else 0,
         )
 
+        from app.i18n.terms import get_display_label
+        display_biz = get_display_label(request.business_type, "business_type", request.lang)
+        display_city = get_display_label(request.city, "city", request.lang)
+
         return ScoutResult(
-            business_type   = request.business_type,
-            city            = request.city,
+            business_type   = display_biz,
+            city            = display_city,
             budget          = request.budget,
             area_size       = request.area_size,
             top_locations   = location_results,
@@ -225,22 +230,33 @@ class LocationScoutAgent:
         )
 
 
-def _to_location_result(r: dict, is_demo: bool = False) -> LocationResult:
+def _to_location_result(r: dict, is_demo: bool = False, lang: str = "en") -> LocationResult:
+    from app.i18n.terms import translate_location_name, translate_address, get_display_label
     sr = r.get("score_result", {})
     rr = r.get("rent_result",  {})
     tr = r.get("traffic_result", {})
     cr = r.get("competitor_result", {})
     bd = sr.get("breakdown", {})
 
+    raw_name = r.get("name", "")
+    raw_address = r.get("address", "")
+    raw_district = r.get("district", rr.get("district", ""))
+    raw_zone = r.get("zone", "")
+
+    loc_name = translate_location_name(raw_name, lang)
+    loc_address = translate_address(raw_address, lang)
+    loc_district = get_display_label(raw_district, "district", lang)
+    loc_zone = get_display_label(raw_zone, "zone", lang)
+
     if is_demo:
         return LocationResult(
             id                    = r.get("id", ""),
-            name                  = r.get("name", ""),
-            address               = r.get("address", ""),
-            district              = r.get("district", rr.get("district", "")),
+            name                  = loc_name,
+            address               = loc_address,
+            district              = loc_district,
             lat                   = r["lat"],
             lng                   = r["lng"],
-            zone                  = r.get("zone", ""),
+            zone                  = loc_zone,
             krisha_link           = r.get("krisha_link", ""),
             final_score           = sr.get("final_score", 0.0),
             score_label           = sr.get("label", ""),
@@ -272,12 +288,12 @@ def _to_location_result(r: dict, is_demo: bool = False) -> LocationResult:
 
     return LocationResult(
         id                    = r.get("id", ""),
-        name                  = r.get("name", ""),
-        address               = r.get("address", ""),
-        district              = r.get("district", rr.get("district", "")),
+        name                  = loc_name,
+        address               = loc_address,
+        district              = loc_district,
         lat                   = r["lat"],
         lng                   = r["lng"],
-        zone                  = r.get("zone", ""),
+        zone                  = loc_zone,
         krisha_link           = r.get("krisha_link", ""),
         final_score           = sr.get("final_score", 0.0),
         score_label           = sr.get("label", ""),

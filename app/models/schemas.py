@@ -55,6 +55,10 @@ class ScoutRequest(BaseModel):
         default="rent",
         description="'rent' or 'buy'",
     )
+    lang:            str   = Field(
+        default="en",
+        description="Language code for output/response (en, ru, kk)",
+    )
 
     model_config = {
         "json_schema_extra": {
@@ -65,6 +69,7 @@ class ScoutRequest(BaseModel):
                 "area_size":       50,
                 "top_n":           3,
                 "rent_or_buy":     "rent",
+                "lang":            "en",
             }
         }
     }
@@ -78,6 +83,7 @@ class PersonalScoutRequest(BaseModel):
     city:        str   = Field(default="Almaty")
     area_size:   int   = Field(default=50, description="Area category (20, 50, 100, 200)")
     top_n:       int   = Field(default=3, ge=1, le=10)
+    lang:        str   = Field(default="en", description="Language code for output/response (en, ru, kk)")
 
 
 # ── Sub-models ────────────────────────────────────────────────────────────────

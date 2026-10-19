@@ -1,4 +1,9 @@
+# Secrets & environment
 .env
+.env.*
+!.env.example
+
+# Python
 __pycache__/
 *.py[cod]
 *.egg-info/
@@ -8,5 +13,13 @@ build/
 venv/
 .pytest_cache/
 .mypy_cache/
+
+# Logs & database
 *.log
 *.db
+push_log*.txt
+debug_out*.txt
+pytest_out*.txt
+
+# Nested clone
+location_scout/

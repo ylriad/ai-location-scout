@@ -38,6 +38,19 @@
       overflow-x: hidden;
     }
 
+    
+    [data-theme="light"] {
+      --bg:          #f4f5f7;
+      --bg2:         #ffffff;
+      --bg3:         #e2e4eb;
+      --card:        #ffffff;
+      --card2:       #f8f9fb;
+      --border:      rgba(108,99,255,.2);
+      --text:        #1d1f2e;
+      --muted:       #6b6d8b;
+      --shadow:      0 8px 40px rgba(0,0,0,.08);
+    }
+    
     /* Background blobs */
     body::before {
       content: '';
@@ -382,6 +395,13 @@
       <span class="nav-badge">V2.0</span>
     </a>
     <div class="nav-links">
+      
+      <select id="langSwitcher" onchange="changeLang(this.value)" style="background:var(--bg2);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:4px 8px;font-size:0.8rem;outline:none;cursor:pointer;">
+        <option value="en">EN</option>
+        <option value="ru">RU</option>
+        <option value="kk">KZ</option>
+      </select>
+      <button id="themeSwitcher" onclick="toggleTheme()" style="background:none;border:none;cursor:pointer;font-size:1.1rem;" title="Toggle Light/Dark Theme">🌓</button>
       <a href="#" id="navFavoritesBtn" style="display:none;">⭐ Favorites (<span id="favCount">0</span>)</a>
       <span id="navUserStatus">
         <button class="btn-login-nav" onclick="showAuthView()">Sign In</button>
@@ -696,43 +716,810 @@
 
   <script>
     // ── Global State ──────────────────────────────────────────────────────────
+    
+    let currentLang = localStorage.getItem('scout_lang') || 'en';
+    let currentTheme = localStorage.getItem('scout_theme');
+    
+    // Theme logic
+    if (!currentTheme) {
+      currentTheme = window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+    }
+    document.documentElement.setAttribute('data-theme', currentTheme);
+
+    function toggleTheme() {
+      currentTheme = currentTheme === 'light' ? 'dark' : 'light';
+      document.documentElement.setAttribute('data-theme', currentTheme);
+      localStorage.setItem('scout_theme', currentTheme);
+    }
+
+    
+    const dict = {
+      en: {
+        title: "Find Your Apartment or Business Site in Minutes",
+        subtitle: "Student housing near Almaty campuses or commercial market selection powered by deep-mapping algorithms and real listings.",
+        hero_tag: "✨ Newly Redesigned two-sided platform",
+        btn_demo: "Try the Demo",
+        btn_auth: "Sign In / Register",
+        nav_fav: "Favorites",
+        nav_hi: "Hi",
+        nav_login: "Sign In",
+        nav_logout: "Sign Out",
+        
+        auth_signin_title: "Sign In",
+        auth_register_title: "Create Account",
+        auth_label_name: "Full Name",
+        auth_label_phone: "Phone Number",
+        auth_label_email: "Email Address",
+        auth_label_password: "Password",
+        auth_name_placeholder: "Aliya Nurlanova",
+        auth_phone_placeholder: "+7 707 111 22 33",
+        auth_email_placeholder: "example@kbtu.kz",
+        auth_password_placeholder: "••••••••",
+        auth_consent: "I consent to the processing of personal data for location scouting purposes.",
+        auth_signin_btn: "Sign In",
+        auth_register_btn: "Register",
+        auth_processing: "Processing…",
+        auth_no_account: "Don't have an account?",
+        auth_has_account: "Already have an account?",
+        auth_register_now: "Register Now",
+        auth_signin_now: "Sign In",
+        btn_back: "Back",
+        
+        dashboard_title: "Welcome to AI Location Scout",
+        dashboard_subtitle: "Select the flow that matches your goals today.",
+        card_apt: "For Students & Renters",
+        card_apt_desc: "Find residential apartments near your university, geocode commutes, and score neighborhood convenience, safety, and entertainment.",
+        card_biz: "For Businesses & Retail",
+        card_biz_desc: "Scout commercial sites. Calculate foot-traffic indices, run spatial competitor gap analyses, check rent feasibility, and estimate profits.",
+        toggle_rent: "Rent",
+        toggle_buy: "Buy",
+        btn_scout_apt: "Scout Apartments",
+        btn_scout_biz: "Scout Locations",
+        btn_find_housing: "Find Housing",
+        btn_scouting: "Scouting…",
+        
+        biz_form_title: "Scout Commercial Locations",
+        personal_form_title: "Find Apartment Near University",
+        label_biz: "Business Category",
+        label_city: "City",
+        label_area: "Min Area Size (m²)",
+        label_budget: "Monthly Budget (KZT)",
+        label_top_n: "Number of Top Locations",
+        label_destination: "Campus Destination or Landmark",
+        placeholder_destination: "e.g. KBTU, Almaty or Satbayev University",
+        label_min_price: "Min Price (KZT)",
+        label_max_price: "Max Price (KZT)",
+        label_ideal_area: "Ideal Area (m²)",
+        
+        opt_coffee: "☕ Coffee Shop",
+        opt_rest: "🍔 Restaurant",
+        opt_gym: "💪 Gym",
+        opt_salon: "💅 Beauty Salon",
+        opt_retail: "🛍️ Retail Store",
+        
+        area_small: "Small (20-49 m²)",
+        area_med: "Medium (50-99 m²)",
+        area_large: "Large (100-199 m²)",
+        area_xlarge: "Extra Large (200+ m²)",
+        locations_suffix: "locations",
+        
+        load_biz_title: "Scouting business locations…",
+        load_biz_sub: "Gathering live listings and evaluating neighborhood variables",
+        load_biz_s1: "Fetching physical foot traffic",
+        load_biz_s2: "Resolving OSM competitor maps",
+        load_biz_s3: "Estimating local commercial rents",
+        load_biz_s4: "Calculating scoring formulas",
+        load_biz_s5: "Generating AI business assessment",
+        
+        load_pers_title: "Finding apartments near your destination…",
+        load_pers_sub: "Gathering live listings and evaluating neighborhood variables",
+        load_pers_s1: "Geocoding destination",
+        load_pers_s2: "Fetching apartments from Krisha",
+        load_pers_s3: "Analyzing Convenience & Proximity",
+        load_pers_s4: "Calculating commute distance",
+        load_pers_s5: "Ranking top candidate apartments",
+        
+        demo_banner_text: "🔒 Demo Mode: Showing 1 test location with locked detail scoring.",
+        demo_banner_link: "Create an account to unlock all results.",
+        
+        tab_locations: "Scouted Locations",
+        tab_workers: "Find Workers",
+        ai_report_title: "AI Location Assessment",
+        ai_report_badge: "Claude Model Report",
+        krisha_card_title: "Live Listings from Krisha.kz",
+        krisha_card_badge: "Real Market Data",
+        workers_card_title: "Top Local Candidates",
+        workers_card_badge: "Parsed HeadHunter.kz Database",
+        
+        top_commercial_prefix: "Top scouted commercial sites for",
+        top_apartments_prefix: "Top properties near",
+        in_city: "in",
+        mode_lbl: "Mode",
+        budget_lbl: "Budget",
+        price_range_lbl: "Price range",
+        area_lbl: "Area",
+        evaluated_lbl: "Evaluated",
+        properties_suffix: "properties",
+        apartments_suffix: "apartments",
+        
+        overall_suitability: "Overall Suitability",
+        overall_score: "Overall Score",
+        district_suffix: "District",
+        bar_convenience: "Convenience Score",
+        bar_safety: "Safety & Family",
+        bar_lifestyle: "Entertainment",
+        bar_traffic: "Foot Traffic Density",
+        bar_competitors: "Competitor Proximity",
+        bar_affordability: "Rent Affordability",
+        bar_demographics: "Demographics Fit",
+        
+        lbl_rent_estimate: "Rent/Price Estimate",
+        lbl_monthly_rent: "Est. Monthly Rent",
+        lbl_monthly_profit: "Est. Monthly Profit",
+        lbl_annual_roi: "Est. Annual ROI",
+        chip_zone: "Zone",
+        chip_commute: "Commute",
+        chip_competitors: "Competitors",
+        btn_save_fav: "Save to Favorites",
+        btn_saved_fav: "Saved",
+        link_map: "🗺️ View Neighborhood on Map ↗",
+        link_directions: "🚗 Get Directions (2GIS) ↗",
+        link_krisha: "🏢 View Listing on Krisha.kz ↗",
+        locked: "Locked",
+        
+        fav_modal_title: "Saved Favorites",
+        fav_empty: "You haven't saved any locations yet.",
+        krisha_empty: "No matching listings found on Krisha.kz.",
+        krisha_error: "Failed to load Krisha.kz data.",
+        krisha_view: "View Details ↗",
+        krisha_price_req: "Price on request",
+        workers_empty: "No candidates found.",
+        workers_error: "Failed to access Headhunter Database.",
+        
+        footer_text: "AI Location Scout platform · Powered by FastAPI & SQLite",
+        alert_auth: "Please sign in or register to save favorites."
+      },
+      ru: {
+        title: "Найдите квартиру или место для бизнеса за минуты",
+        subtitle: "Студенческое жилье рядом с кампусами Алматы или выбор коммерческой недвижимости с помощью алгоритмов глубокого картирования и реальных объявлений.",
+        hero_tag: "✨ Обновленная платформа для двух направлений",
+        btn_demo: "Попробовать Демо",
+        btn_auth: "Войти / Регистрация",
+        nav_fav: "Избранное",
+        nav_hi: "Привет",
+        nav_login: "Войти",
+        nav_logout: "Выйти",
+        
+        auth_signin_title: "Вход в аккаунт",
+        auth_register_title: "Регистрация",
+        auth_label_name: "Полное имя",
+        auth_label_phone: "Номер телефона",
+        auth_label_email: "Электронная почта",
+        auth_label_password: "Пароль",
+        auth_name_placeholder: "Алия Нурланова",
+        auth_phone_placeholder: "+7 707 111 22 33",
+        auth_email_placeholder: "example@kbtu.kz",
+        auth_password_placeholder: "••••••••",
+        auth_consent: "Я согласен на обработку персональных данных для целей подбора локаций.",
+        auth_signin_btn: "Войти",
+        auth_register_btn: "Зарегистрироваться",
+        auth_processing: "Обработка…",
+        auth_no_account: "Нет аккаунта?",
+        auth_has_account: "Уже есть аккаунт?",
+        auth_register_now: "Создать аккаунт",
+        auth_signin_now: "Войти",
+        btn_back: "Назад",
+        
+        dashboard_title: "Добро пожаловать в AI Location Scout",
+        dashboard_subtitle: "Выберите направление для поиска прямо сейчас.",
+        card_apt: "Для Студентов и Арендаторов",
+        card_apt_desc: "Поиск жилых квартир рядом с университетом, расчёт времени в пути и оценка безопасности, инфраструктуры и развлечений района.",
+        card_biz: "Для Бизнеса и Ритейла",
+        card_biz_desc: "Подбор коммерческих помещений. Расчет пешеходного трафика, анализ плотности конкурентов, оценка аренды и прогноз прибыли.",
+        toggle_rent: "Аренда",
+        toggle_buy: "Покупка",
+        btn_scout_apt: "Искать Квартиры",
+        btn_scout_biz: "Искать Локации",
+        btn_find_housing: "Найти Жилье",
+        btn_scouting: "Поиск…",
+        
+        biz_form_title: "Поиск коммерческих помещений",
+        personal_form_title: "Поиск квартиры рядом с университетом",
+        label_biz: "Категория Бизнеса",
+        label_city: "Город",
+        label_area: "Мин. Площадь (м²)",
+        label_budget: "Месячный Бюджет (KZT)",
+        label_top_n: "Количество Лучших Локаций",
+        label_destination: "Ориентир или Университет",
+        placeholder_destination: "например, КБТУ, Алматы или Satbayev University",
+        label_min_price: "Мин. Цена (KZT)",
+        label_max_price: "Макс. Цена (KZT)",
+        label_ideal_area: "Желаемая Площадь (м²)",
+        
+        opt_coffee: "☕ Кофейня",
+        opt_rest: "🍔 Ресторан",
+        opt_gym: "💪 Тренажерный зал",
+        opt_salon: "💅 Салон Красоты",
+        opt_retail: "🛍️ Розничный Магазин",
+        
+        area_small: "Компактная (20-49 м²)",
+        area_med: "Средняя (50-99 м²)",
+        area_large: "Большая (100-199 м²)",
+        area_xlarge: "Очень большая (200+ м²)",
+        locations_suffix: "локаций",
+        
+        load_biz_title: "Поиск коммерческих локаций…",
+        load_biz_sub: "Сбор актуальных объявлений и расчёт параметров района",
+        load_biz_s1: "Анализ пешеходного трафика",
+        load_biz_s2: "Построение карты конкурентов",
+        load_biz_s3: "Оценка рыночной ставки аренды",
+        load_biz_s4: "Расчет скоринговых формул",
+        load_biz_s5: "Генерация отчета AI",
+        
+        load_pers_title: "Поиск квартир рядом с вашим ориентиром…",
+        load_pers_sub: "Сбор актуальных объявлений и оценка параметров района",
+        load_pers_s1: "Геокодирование пункта назначения",
+        load_pers_s2: "Загрузка предложений с Krisha.kz",
+        load_pers_s3: "Анализ удобства и близости",
+        load_pers_s4: "Расчет расстояния в пути",
+        load_pers_s5: "Ранжирование лучших квартир",
+        
+        demo_banner_text: "🔒 Демо-режим: доступна 1 тестовая локация с закрытыми детальными баллами.",
+        demo_banner_link: "Создайте аккаунт, чтобы открыть все результаты.",
+        
+        tab_locations: "Подобранные Локации",
+        tab_workers: "Поиск Сотрудников",
+        ai_report_title: "Оценка Локации от AI",
+        ai_report_badge: "Отчет модели Claude",
+        krisha_card_title: "Свежие объявления с Krisha.kz",
+        krisha_card_badge: "Реальные рыночные данные",
+        workers_card_title: "Кандидаты в районе",
+        workers_card_badge: "База HeadHunter.kz",
+        
+        top_commercial_prefix: "Лучшие коммерческие локации для",
+        top_apartments_prefix: "Лучшие квартиры рядом с",
+        in_city: "в г.",
+        mode_lbl: "Тип",
+        budget_lbl: "Бюджет",
+        price_range_lbl: "Диапазон цен",
+        area_lbl: "Площадь",
+        evaluated_lbl: "Проанализировано",
+        properties_suffix: "помещений",
+        apartments_suffix: "квартир",
+        
+        overall_suitability: "Общая Пригодность",
+        overall_score: "Общий Балл",
+        district_suffix: "район",
+        bar_convenience: "Удобство района",
+        bar_safety: "Безопасность и Семья",
+        bar_lifestyle: "Развлечения и Досуг",
+        bar_traffic: "Пешеходный Трафик",
+        bar_competitors: "Близость Конкурентов",
+        bar_affordability: "Доступность Аренды",
+        bar_demographics: "Демографическое Соответствие",
+        
+        lbl_rent_estimate: "Оценка аренды/цены",
+        lbl_monthly_rent: "Ориент. Аренда в Месяц",
+        lbl_monthly_profit: "Ожидаемая Прибыль",
+        lbl_annual_roi: "Годовой ROI",
+        chip_zone: "Зона",
+        chip_commute: "Путь",
+        chip_competitors: "Конкуренты",
+        btn_save_fav: "В Избранное",
+        btn_saved_fav: "В Избранном",
+        link_map: "🗺️ Открыть район на карте ↗",
+        link_directions: "🚗 Маршрут в 2GIS ↗",
+        link_krisha: "🏢 Объявление на Krisha.kz ↗",
+        locked: "Закрыто",
+        
+        fav_modal_title: "Сохраненные локации",
+        fav_empty: "У вас пока нет сохраненных локаций.",
+        krisha_empty: "Подходящих объявлений на Krisha.kz не найдено.",
+        krisha_error: "Не удалось загрузить данные с Krisha.kz.",
+        krisha_view: "Смотреть детали ↗",
+        krisha_price_req: "Цена по запросу",
+        workers_empty: "Кандидаты не найдены.",
+        workers_error: "Не удалось получить доступ к базе Headhunter.",
+        
+        footer_text: "Платформа AI Location Scout · Разработано на FastAPI и SQLite",
+        alert_auth: "Пожалуйста, войдите или зарегистрируйтесь, чтобы сохранять в избранное."
+      },
+      kk: {
+        title: "Пәтер немесе бизнес орнын минут ішінде табыңыз",
+        subtitle: "Алматы кампустарына жақын студенттік тұрғын үй немесе терең картаға түсіру алгоритмдері мен нақты хабарландырулар арқылы коммерциялық нарықты таңдау.",
+        hero_tag: "✨ Екі бағытты жаңартылған платформа",
+        btn_demo: "Демо нұсқасын көру",
+        btn_auth: "Кіру / Тіркелу",
+        nav_fav: "Таңдаулылар",
+        nav_hi: "Сәлем",
+        nav_login: "Кіру",
+        nav_logout: "Шығу",
+        
+        auth_signin_title: "Жүйеге кіру",
+        auth_register_title: "Тіркелу",
+        auth_label_name: "Толық аты-жөні",
+        auth_label_phone: "Телефон нөмірі",
+        auth_label_email: "Электрондық пошта",
+        auth_label_password: "Құпиясөз",
+        auth_name_placeholder: "Әлия Нұрланова",
+        auth_phone_placeholder: "+7 707 111 22 33",
+        auth_email_placeholder: "example@kbtu.kz",
+        auth_password_placeholder: "••••••••",
+        auth_consent: "Орындарды таңдау мақсатында жеке деректерді өңдеуге келісім беремін.",
+        auth_signin_btn: "Кіру",
+        auth_register_btn: "Тіркелу",
+        auth_processing: "Өңделуде…",
+        auth_no_account: "Тіркелмегенсіз бе?",
+        auth_has_account: "Тіркелгенсіз бе?",
+        auth_register_now: "Тіркелу",
+        auth_signin_now: "Кіру",
+        btn_back: "Артқа",
+        
+        dashboard_title: "AI Location Scout жүйесіне қош келдіңіз",
+        dashboard_subtitle: "Бүгінгі мақсатыңызға сәйкес іздеу бағытын таңдаңыз.",
+        card_apt: "Студенттер мен Жалға алушыларға",
+        card_apt_desc: "Университетке жақын пәтерлерді табу, жол уақытын есептеу және ауданның қауіпсіздігін, ыңғайлылығы мен ойын-сауығын бағалау.",
+        card_biz: "Бизнес және Бөлшек сауда үшін",
+        card_biz_desc: "Коммерциялық орындарды таңдау. Жаяу жүргіншілер легін, бәсекелестер тығыздығын, жалдау бағасын және күтілетін табысты есептеу.",
+        toggle_rent: "Жалға алу",
+        toggle_buy: "Сатып алу",
+        btn_scout_apt: "Пәтерлерді Іздеу",
+        btn_scout_biz: "Орындарды Іздеу",
+        btn_find_housing: "Тұрғын Үй Табу",
+        btn_scouting: "Ізделуде…",
+        
+        biz_form_title: "Коммерциялық орындарды іздеу",
+        personal_form_title: "Университет маңынан пәтер табу",
+        label_biz: "Бизнес Санаты",
+        label_city: "Қала",
+        label_area: "Мин. Ауданы (м²)",
+        label_budget: "Айлық Бюджет (KZT)",
+        label_top_n: "Үздік Орындар Саны",
+        label_destination: "Баратын Орын немесе Университет",
+        placeholder_destination: "мысалы, ҚБТУ, Алматы немесе Сәтбаев Университеті",
+        label_min_price: "Мин. Баға (KZT)",
+        label_max_price: "Макс. Баға (KZT)",
+        label_ideal_area: "Қажетті Ауданы (м²)",
+        
+        opt_coffee: "☕ Кофехана",
+        opt_rest: "🍔 Мейрамхана",
+        opt_gym: "💪 Спорт залы",
+        opt_salon: "💅 Сұлулық Салоны",
+        opt_retail: "🛍️ Бөлшек Сауда Дүкені",
+        
+        area_small: "Шағын (20-49 м²)",
+        area_med: "Орташа (50-99 м²)",
+        area_large: "Үлкен (100-199 м²)",
+        area_xlarge: "Өте үлкен (200+ м²)",
+        locations_suffix: "орын",
+        
+        load_biz_title: "Коммерциялық орындар ізделуде…",
+        load_biz_sub: "Өзекті хабарландыруларды жинау және аудан көрсеткіштерін бағалау",
+        load_biz_s1: "Жаяу жүргіншілер ағынын тексеру",
+        load_biz_s2: "Бәсекелестер картасын құру",
+        load_biz_s3: "Жалдау ақысының деңгейін бағалау",
+        load_biz_s4: "Скоринг формулаларын есептеу",
+        load_biz_s5: "AI есебін құрастыру",
+        
+        load_pers_title: "Белгіленген орынға жақын пәтерлер ізделуде…",
+        load_pers_sub: "Өзекті хабарландыруларды жинау және аудан көрсеткіштерін бағалау",
+        load_pers_s1: "Баратын орынды анықтау",
+        load_pers_s2: "Krisha.kz деректерін жүктеу",
+        load_pers_s3: "Қолайлылық пен жақындықты талдау",
+        load_pers_s4: "Жол қашықтығын есептеу",
+        load_pers_s5: "Үздік пәтерлерді саралау",
+        
+        demo_banner_text: "🔒 Демо режимі: тек 1 сынақ орны жабық егжей-тегжейлі бағалармен көрсетілген.",
+        demo_banner_link: "Барлық нәтижелерді ашу үшін аккаунт жасаңыз.",
+        
+        tab_locations: "Табылған Орындар",
+        tab_workers: "Қызметкерлерді Табу",
+        ai_report_title: "AI Орын Бағалауы",
+        ai_report_badge: "Claude моделінің есебі",
+        krisha_card_title: "Krisha.kz тікелей хабарландырулары",
+        krisha_card_badge: "Нақты нарықтық деректер",
+        workers_card_title: "Аудандағы мамандар",
+        workers_card_badge: "HeadHunter.kz базасы",
+        
+        top_commercial_prefix: "Үздік коммерциялық орындар:",
+        top_apartments_prefix: "Жақын маңдағы үздік баспаналар:",
+        in_city: "қаласы:",
+        mode_lbl: "Түрі",
+        budget_lbl: "Бюджет",
+        price_range_lbl: "Баға аралығы",
+        area_lbl: "Ауданы",
+        evaluated_lbl: "Бағаланды",
+        properties_suffix: "ғимарат",
+        apartments_suffix: "пәтер",
+        
+        overall_suitability: "Жалпы Қолайлылығы",
+        overall_score: "Жалпы Баға",
+        district_suffix: "ауданы",
+        bar_convenience: "Ауданның Ыңғайлылығы",
+        bar_safety: "Қауіпсіздік және Отбасы",
+        bar_lifestyle: "Ойын-сауық және Демалыс",
+        bar_traffic: "Жаяу Жүргіншілер Легі",
+        bar_competitors: "Бәсекелестер Жақындығы",
+        bar_affordability: "Жалдау Қолжетімділігі",
+        bar_demographics: "Демографиялық Сәйкестік",
+        
+        lbl_rent_estimate: "Жалдау/баға мөлшері",
+        lbl_monthly_rent: "Айлық Жалдау Мөлшері",
+        lbl_monthly_profit: "Болжамды Пайда",
+        lbl_annual_roi: "Жылдық ROI",
+        chip_zone: "Аймақ",
+        chip_commute: "Жол",
+        chip_competitors: "Бәсекелестер",
+        btn_save_fav: "Таңдаулыға Сақтау",
+        btn_saved_fav: "Сақталды",
+        link_map: "🗺️ Ауданды картадан көру ↗",
+        link_directions: "🚗 2GIS бағыты ↗",
+        link_krisha: "🏢 Krisha.kz хабарландыруы ↗",
+        locked: "Құлыпталған",
+        
+        fav_modal_title: "Сақталған орындар",
+        fav_empty: "Сізде әлі сақталған орындар жоқ.",
+        krisha_empty: "Krisha.kz сайтынан сәйкес хабарландырулар табылмады.",
+        krisha_error: "Krisha.kz деректерін жүктеу мүмкін болмады.",
+        krisha_view: "Толығырақ көру ↗",
+        krisha_price_req: "Баға сұраныс бойынша",
+        workers_empty: "Үміткерлер табылмады.",
+        workers_error: "HeadHunter базасына қосылу мүмкін болмады.",
+        
+        footer_text: "AI Location Scout платформасы · FastAPI және SQLite негізінде",
+        alert_auth: "Таңдаулыларға сақтау үшін жүйеге кіріңіз немесе тіркеліңіз."
+      }
+    };
+
+    const DISTRICT_MAP = {
+      "Bostandyk": { en: "Bostandyk", ru: "Бостандыкский", kk: "Бостандық" },
+      "Бостандыкский": { en: "Bostandyk", ru: "Бостандыкский", kk: "Бостандық" },
+      "Бостандық": { en: "Bostandyk", ru: "Бостандыкский", kk: "Бостандық" },
+      "Medeu": { en: "Medeu", ru: "Медеуский", kk: "Медеу" },
+      "Медеуский": { en: "Medeu", ru: "Медеуский", kk: "Медеу" },
+      "Медеу": { en: "Medeu", ru: "Медеуский", kk: "Медеу" },
+      "Almaly": { en: "Almaly", ru: "Алмалинский", kk: "Алмалы" },
+      "Алмалинский": { en: "Almaly", ru: "Алмалинский", kk: "Алмалы" },
+      "Алмалы": { en: "Almaly", ru: "Алмалинский", kk: "Алмалы" },
+      "Auezov": { en: "Auezov", ru: "Ауэзовский", kk: "Әуезов" },
+      "Ауэзовский": { en: "Auezov", ru: "Ауэзовский", kk: "Әуезов" },
+      "Әуезов": { en: "Auezov", ru: "Ауэзовский", kk: "Әуезов" },
+      "Turksib": { en: "Turksib", ru: "Турксибский", kk: "Түрксіб" },
+      "Турксибский": { en: "Turksib", ru: "Турксибский", kk: "Түрксіб" },
+      "Түрксіб": { en: "Turksib", ru: "Турксибский", kk: "Түрксіб" },
+      "Zhetysu": { en: "Zhetysu", ru: "Жетысуский", kk: "Жетісу" },
+      "Жетысуский": { en: "Zhetysu", ru: "Жетысуский", kk: "Жетісу" },
+      "Жетісу": { en: "Zhetysu", ru: "Жетысуский", kk: "Жетісу" },
+      "Alatau": { en: "Alatau", ru: "Алатауский", kk: "Алатау" },
+      "Алатауский": { en: "Alatau", ru: "Алатауский", kk: "Алатау" },
+      "Алатау": { en: "Alatau", ru: "Алатауский", kk: "Алатау" },
+      "Nauryzbay": { en: "Nauryzbay", ru: "Наурызбайский", kk: "Наурызбай" },
+      "Наурызбайский": { en: "Nauryzbay", ru: "Наурызбайский", kk: "Наурызбай" },
+      "Наурызбай": { en: "Nauryzbay", ru: "Наурызбайский", kk: "Наурызбай" }
+    };
+
+    const ZONE_MAP = {
+      "Central": { en: "Central", ru: "Центр", kk: "Орталық" },
+      "Центр": { en: "Central", ru: "Центр", kk: "Орталық" },
+      "Орталық": { en: "Central", ru: "Центр", kk: "Орталық" },
+      "Residential": { en: "Residential", ru: "Спальный", kk: "Тұрғын үй" },
+      "Спальный": { en: "Residential", ru: "Спальный", kk: "Тұрғын үй" },
+      "Тұрғын үй": { en: "Residential", ru: "Спальный", kk: "Тұрғын үй" },
+      "Commercial": { en: "Commercial", ru: "Деловой", kk: "Іскерлік" },
+      "Деловой": { en: "Commercial", ru: "Деловой", kk: "Іскерлік" },
+      "Іскерлік": { en: "Commercial", ru: "Деловой", kk: "Іскерлік" },
+      "Industrial": { en: "Industrial", ru: "Промышленный", kk: "Өндірістік" },
+      "Промышленный": { en: "Industrial", ru: "Промышленный", kk: "Өндірістік" },
+      "Өндірістік": { en: "Industrial", ru: "Промышленный", kk: "Өндірістік" }
+    };
+
+    function translateDistrict(name, lang) {
+      if (!name) return '';
+      const base = name.replace(/ (District|район|ауданы)/i, '').trim();
+      const m = DISTRICT_MAP[base] || DISTRICT_MAP[name];
+      const translated = m ? (m[lang] || base) : base;
+      const t = dict[lang] || dict.en;
+      return `${translated} ${t.district_suffix}`;
+    }
+
+    function translateZone(zone, lang) {
+      if (!zone) return '';
+      const m = ZONE_MAP[zone];
+      return m ? (m[lang] || zone) : zone;
+    }
+
+    function translateScoreLabel(label, lang) {
+      if (!label) return '';
+      const l = label.toLowerCase();
+      if (l.includes('excellent') || l.includes('отлично') || l.includes('өте жақсы')) {
+        return lang === 'ru' ? 'Отлично (A+)' : (lang === 'kk' ? 'Өте жақсы (A+)' : 'Excellent (A+)');
+      }
+      if (l.includes('good') || l.includes('хорошо') || l.includes('жақсы')) {
+        return lang === 'ru' ? 'Хорошо (B+)' : (lang === 'kk' ? 'Жақсы (B+)' : 'Good (B+)');
+      }
+      if (l.includes('fair') || l.includes('удовлетворительно') || l.includes('орташа')) {
+        return lang === 'ru' ? 'Удовлетворительно (C)' : (lang === 'kk' ? 'Орташа (C)' : 'Fair (C)');
+      }
+      return lang === 'ru' ? 'Слабо (D)' : (lang === 'kk' ? 'Төмен (D)' : 'Poor (D)');
+    }
+
+    function translateBizType(btype, lang) {
+      const t = dict[lang] || dict.en;
+      const b = (btype || '').toLowerCase();
+      if (b.includes('coffee')) return t.opt_coffee;
+      if (b.includes('rest')) return t.opt_rest;
+      if (b.includes('gym')) return t.opt_gym;
+      if (b.includes('salon')) return t.opt_salon;
+      if (b.includes('retail')) return t.opt_retail;
+      return btype;
+    }
+
+    function translateAddress(addr, lang) {
+      if (!addr) return '';
+      let res = addr;
+      if (lang === 'en') {
+        res = res.replace(/улица /gi, '').replace(/ул\./gi, '').replace(/проспект /gi, 'Ave. ').replace(/пр\./gi, 'Ave. ').replace(/көшесі/gi, 'St.');
+        res = res.replace(/Бостандыкский район/gi, 'Bostandyk District').replace(/Медеуский район/gi, 'Medeu District').replace(/Алмалинский район/gi, 'Almaly District').replace(/Ауэзовский район/gi, 'Auezov District');
+        res = res.replace(/Алматы, /gi, 'Almaty, ');
+      } else if (lang === 'kk') {
+        res = res.replace(/ул\./gi, '').replace(/улица /gi, '').replace(/проспект /gi, 'даңғылы, ').replace(/пр\./gi, 'даңғылы, ');
+        res = res.replace(/Bostandyk District/gi, 'Бостандық ауданы').replace(/Бостандыкский район/gi, 'Бостандық ауданы');
+        res = res.replace(/Medeu District/gi, 'Медеу ауданы').replace(/Медеуский район/gi, 'Медеу ауданы');
+        res = res.replace(/Almaly District/gi, 'Алмалы ауданы').replace(/Алмалинский район/gi, 'Алмалы ауданы');
+      } else {
+        res = res.replace(/Ave\./gi, 'пр.').replace(/St\./gi, 'ул.');
+        res = res.replace(/Bostandyk District/gi, 'Бостандыкский район').replace(/Medeu District/gi, 'Медеуский район').replace(/Almaly District/gi, 'Алмалинский район');
+      }
+      return res;
+    }
+
+    function changeLang(lang) {
+      currentLang = lang;
+      localStorage.setItem('scout_lang', lang);
+      
+      const t = dict[lang] || dict.en;
+      
+      // Update Navbar
+      const favLink = $('navFavoritesBtn');
+      if (favLink) {
+        favLink.innerHTML = `⭐ ${t.nav_fav} (<span id="favCount">${favorites.length}</span>)`;
+      }
+      updateNavbarUserUI();
+      
+      // Update Landing
+      const heroTag = document.querySelector('.hero-tag');
+      if (heroTag) heroTag.textContent = t.hero_tag;
+      const h1 = document.querySelector('.landing-hero h1');
+      if (h1) h1.textContent = t.title;
+      const p = document.querySelector('.landing-hero p');
+      if (p) p.textContent = t.subtitle;
+      const btnDemo = document.querySelector('.btn-landing.primary');
+      if (btnDemo) btnDemo.textContent = t.btn_demo;
+      const btnAuth = document.querySelector('.btn-landing.secondary');
+      if (btnAuth) btnAuth.textContent = t.btn_auth;
+      
+      // Update Dashboard
+      const dashTitle = document.querySelector('.dashboard-title');
+      if (dashTitle) dashTitle.textContent = t.dashboard_title;
+      const dashSub = document.querySelector('.dashboard-subtitle');
+      if (dashSub) dashSub.textContent = t.dashboard_subtitle;
+      
+      const aptH3 = document.querySelector('#view-dashboard .dash-card:nth-child(1) h3');
+      if (aptH3) aptH3.textContent = t.card_apt;
+      const aptP = document.querySelector('#view-dashboard .dash-card:nth-child(1) p');
+      if (aptP) aptP.textContent = t.card_apt_desc;
+      const aptBtn = document.querySelector('#view-dashboard .dash-card:nth-child(1) .btn-scout');
+      if (aptBtn) aptBtn.textContent = t.btn_scout_apt;
+      
+      const bizH3 = document.querySelector('#view-dashboard .dash-card:nth-child(2) h3');
+      if (bizH3) bizH3.textContent = t.card_biz;
+      const bizP = document.querySelector('#view-dashboard .dash-card:nth-child(2) p');
+      if (bizP) bizP.textContent = t.card_biz_desc;
+      const bizBtn = document.querySelector('#view-dashboard .dash-card:nth-child(2) .btn-scout');
+      if (bizBtn) bizBtn.textContent = t.btn_scout_biz;
+      
+      const pRent = $('lbl-personal-rent'); if (pRent) pRent.textContent = t.toggle_rent;
+      const pBuy = $('lbl-personal-buy'); if (pBuy) pBuy.textContent = t.toggle_buy;
+      const bRent = $('lbl-business-rent'); if (bRent) bRent.textContent = t.toggle_rent;
+      const bBuy = $('lbl-business-buy'); if (bBuy) bBuy.textContent = t.toggle_buy;
+      
+      // Update Auth View
+      syncAuthCardUI();
+      const authBack = document.querySelector('#view-auth .btn-back');
+      if (authBack) authBack.textContent = t.btn_back;
+      const nameLbl = document.querySelector('#authNameGroup label');
+      if (nameLbl) nameLbl.textContent = t.auth_label_name;
+      const phoneLbl = document.querySelector('#authPhoneGroup label');
+      if (phoneLbl) phoneLbl.textContent = t.auth_label_phone;
+      const emailLbl = document.querySelector('#authForm .form-group:nth-child(3) label');
+      if (emailLbl) emailLbl.textContent = t.auth_label_email;
+      const passLbl = document.querySelector('#authForm .form-group:nth-child(4) label');
+      if (passLbl) passLbl.textContent = t.auth_label_password;
+      const consentLbl = document.querySelector('#authConsentGroup label');
+      if (consentLbl) consentLbl.textContent = t.auth_consent;
+      
+      // Update Business Search Form
+      const bizBack = document.querySelector('#view-search-business .btn-back');
+      if (bizBack) bizBack.textContent = t.btn_back;
+      const bizTitleEl = document.querySelector('#view-search-business .form-title span');
+      if (bizTitleEl) {
+        const mode = $('toggle-business-mode')?.checked ? t.toggle_buy : t.toggle_rent;
+        bizTitleEl.innerHTML = `${t.biz_form_title} (<span id="spanBusinessMode">${mode}</span>)`;
+      }
+      const bLabels = document.querySelectorAll('#scoutForm label');
+      if (bLabels.length >= 5) {
+        bLabels[0].textContent = t.label_biz;
+        bLabels[1].textContent = t.label_city;
+        bLabels[2].textContent = t.label_area;
+        bLabels[3].textContent = t.label_budget;
+        bLabels[4].textContent = t.label_top_n;
+      }
+      const bOpts = document.querySelectorAll('#business_type option');
+      if (bOpts.length >= 5) {
+        bOpts[0].textContent = t.opt_coffee;
+        bOpts[1].textContent = t.opt_rest;
+        bOpts[2].textContent = t.opt_gym;
+        bOpts[3].textContent = t.opt_salon;
+        bOpts[4].textContent = t.opt_retail;
+      }
+      const bAreaOpts = document.querySelectorAll('#area_size option');
+      if (bAreaOpts.length >= 4) {
+        bAreaOpts[0].textContent = t.area_small;
+        bAreaOpts[1].textContent = t.area_med;
+        bAreaOpts[2].textContent = t.area_large;
+        bAreaOpts[3].textContent = t.area_xlarge;
+      }
+      const scoutBtn = $('scoutBtn');
+      if (scoutBtn && !scoutBtn.disabled) {
+        scoutBtn.innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg> ${t.btn_scout_biz}`;
+      }
+      
+      // Update Personal Search Form
+      const persBack = document.querySelector('#view-search-personal .btn-back');
+      if (persBack) persBack.textContent = t.btn_back;
+      const persTitleEl = document.querySelector('#view-search-personal .form-title span');
+      if (persTitleEl) {
+        const mode = $('toggle-personal-mode')?.checked ? t.toggle_buy : t.toggle_rent;
+        persTitleEl.innerHTML = `${t.personal_form_title} (<span id="spanPersonalMode">${mode}</span>)`;
+      }
+      const pLabels = document.querySelectorAll('#personalScoutForm label');
+      if (pLabels.length >= 6) {
+        pLabels[0].textContent = t.label_destination;
+        pLabels[1].textContent = t.label_min_price;
+        pLabels[2].textContent = t.label_max_price;
+        pLabels[3].textContent = t.label_city;
+        pLabels[4].textContent = t.label_ideal_area;
+        pLabels[5].textContent = t.label_top_n;
+      }
+      const pDest = $('personal_destination');
+      if (pDest) pDest.placeholder = t.placeholder_destination;
+      const pAreaOpts = document.querySelectorAll('#personal_area_size option');
+      if (pAreaOpts.length >= 4) {
+        pAreaOpts[0].textContent = t.area_small;
+        pAreaOpts[1].textContent = t.area_med;
+        pAreaOpts[2].textContent = t.area_large;
+        pAreaOpts[3].textContent = t.area_xlarge;
+      }
+      const pBtn = $('personalScoutBtn');
+      if (pBtn && !pBtn.disabled) {
+        pBtn.innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg> ${t.btn_find_housing}`;
+      }
+      
+      // Update Range Sliders Values
+      const topN = $('top_n');
+      if (topN && $('topNVal')) $('topNVal').textContent = `${topN.value} ${t.locations_suffix}`;
+      const pTopN = $('personal_top_n');
+      if (pTopN && $('personalTopNVal')) $('personalTopNVal').textContent = `${pTopN.value} ${t.locations_suffix}`;
+      
+      // Update Results Elements
+      const demoBanner = $('demoBanner');
+      if (demoBanner) {
+        demoBanner.innerHTML = `${t.demo_banner_text} <a href="#" onclick="showAuthView(); return false;">${t.demo_banner_link}</a>`;
+      }
+      const tabLoc = $('tabLocations');
+      if (tabLoc) tabLoc.textContent = `📍 ${t.tab_locations}`;
+      const tabW = $('tabWorkers');
+      if (tabW) tabW.textContent = `🧑‍💼 ${t.tab_workers}`;
+      
+      const aiReportHeader = document.querySelector('#aiReportCard .report-title');
+      if (aiReportHeader) aiReportHeader.textContent = `🤖 ${t.ai_report_title}`;
+      const aiReportSource = document.querySelector('#aiReportCard .report-source');
+      if (aiReportSource) aiReportSource.textContent = t.ai_report_badge;
+      
+      const krishaHeader = document.querySelector('#krishaCard .report-title');
+      if (krishaHeader) krishaHeader.textContent = `🏢 ${t.krisha_card_title}`;
+      const krishaSource = document.querySelector('#krishaCard .report-source');
+      if (krishaSource) krishaSource.textContent = `🇰🇿 ${t.krisha_card_badge}`;
+      
+      const workersHeader = document.querySelector('#workersTabPanel .report-title');
+      if (workersHeader) workersHeader.textContent = `🧑‍💼 ${t.workers_card_title}`;
+      const workersSource = document.querySelector('#workersTabPanel .report-source');
+      if (workersSource) workersSource.textContent = `📄 ${t.workers_card_badge}`;
+      
+      // Update Favorites Modal Header
+      const favModalTitle = document.querySelector('#favModal .modal-header h2');
+      if (favModalTitle) favModalTitle.textContent = `⭐ ${t.fav_modal_title}`;
+      
+      // Update Footer
+      const footerP = document.querySelector('footer p');
+      if (footerP) footerP.textContent = t.footer_text;
+      
+      // Re-render current search results cards if present
+      if (lastSearchResults && $('results').classList.contains('visible')) {
+        renderCurrentResults(lang);
+      }
+      
+      // Re-render favorites modal if visible or opened
+      if ($('favModal').classList.contains('visible')) {
+        renderFavorites();
+      }
+    }
+
+    // Set initial select value on load
+    document.addEventListener("DOMContentLoaded", () => {
+      const select = document.getElementById('langSwitcher');
+      if (select) {
+        select.value = currentLang;
+      }
+      changeLang(currentLang);
+    });
+
     let isDemoMode = true;
     let currentUser = null;
     let currentLocationsMap = {};
-    let favorites = JSON.parse(localStorage.getItem('scout_favs') || '[]');
+    let favorites = [];
     let currentSearchType = 'business'; // 'business' or 'personal'
     let currentAuthMode = 'login'; // 'login' or 'register'
+    let lastSearchResults = null;
+    let lastSearchPayload = null;
 
     const $ = id => document.getElementById(id);
 
-    // ── Favorites management ──────────────────────────────────────────────────
+    // ── Favorites management with Database ─────────────────────────────────────
     function updateFavCount() {
       const cnt = $('favCount');
       if (cnt) cnt.textContent = favorites.length;
     }
 
-    function toggleFavorite(id) {
+    async function toggleFavorite(id) {
+      const t = dict[currentLang] || dict.en;
       if (!currentUser) {
-        alert('Please sign in or register to save favorites.');
+        alert(t.alert_auth);
         showAuthView();
         return;
       }
       const idx = favorites.findIndex(f => f.id === id);
       if (idx > -1) {
+        try {
+          await fetch(`/favorites/${encodeURIComponent(id)}`, { method: 'DELETE' });
+        } catch (e) {
+          console.error(e);
+        }
         favorites.splice(idx, 1);
       } else {
-        if (currentLocationsMap[id]) favorites.push(currentLocationsMap[id]);
+        const loc = currentLocationsMap[id];
+        if (loc) {
+          try {
+            await fetch('/favorites', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ location_id: id, location_data: loc })
+            });
+          } catch (e) {
+            console.error(e);
+          }
+          favorites.push(loc);
+        }
       }
-      localStorage.setItem('scout_favs', JSON.stringify(favorites));
       updateFavCount();
       
       document.querySelectorAll('.btn-fav[data-id="'+id+'"]').forEach(btn => {
         if (idx > -1) {
           btn.classList.remove('active');
-          btn.innerHTML = '☆ Save to Favorites';
+          btn.innerHTML = `☆ ${t.btn_save_fav}`;
         } else {
           btn.classList.add('active');
-          btn.innerHTML = '⭐ Saved';
+          btn.innerHTML = `⭐ ${t.btn_saved_fav}`;
         }
       });
 
@@ -742,9 +1529,10 @@
     }
 
     function renderFavorites() {
+      const t = dict[currentLang] || dict.en;
       const grid = $('favGrid');
       if (favorites.length === 0) {
-        grid.innerHTML = "<p style='color:var(--muted); grid-column: 1/-1;'>You haven't saved any locations yet.</p>";
+        grid.innerHTML = `<p style='color:var(--muted); grid-column: 1/-1;'>${t.fav_empty}</p>`;
         return;
       }
       let html = '';
@@ -794,6 +1582,7 @@
     }
 
     function syncAuthCardUI() {
+      const t = dict[currentLang] || dict.en;
       const title = $('authCardTitle');
       const nameGrp = $('authNameGroup');
       const phoneGrp = $('authPhoneGroup');
@@ -803,24 +1592,24 @@
       const tBtn = $('authToggleBtn');
 
       if (currentAuthMode === 'login') {
-        title.textContent = 'Sign In';
+        title.textContent = t.auth_signin_title;
         nameGrp.style.display = 'none';
         phoneGrp.style.display = 'none';
         consentGrp.style.display = 'none';
-        btn.textContent = 'Sign In';
-        tText.textContent = "Don't have an account?";
-        tBtn.textContent = 'Register Now';
+        btn.textContent = t.auth_signin_btn;
+        tText.textContent = t.auth_no_account;
+        tBtn.textContent = t.auth_register_now;
         $('auth_name').required = false;
         $('auth_phone').required = false;
         $('auth_consent').required = false;
       } else {
-        title.textContent = 'Create Account';
+        title.textContent = t.auth_register_title;
         nameGrp.style.display = 'block';
         phoneGrp.style.display = 'block';
         consentGrp.style.display = 'flex';
-        btn.textContent = 'Register';
-        tText.textContent = 'Already have an account?';
-        tBtn.textContent = 'Sign In';
+        btn.textContent = t.auth_register_btn;
+        tText.textContent = t.auth_has_account;
+        tBtn.textContent = t.auth_signin_now;
         $('auth_name').required = true;
         $('auth_phone').required = true;
         $('auth_consent').required = true;
@@ -842,18 +1631,20 @@
     }
 
     function launchPersonalSearch() {
+      const t = dict[currentLang] || dict.en;
       const buyMode = $('toggle-personal-mode').checked;
       const mode = buyMode ? 'buy' : 'rent';
       $('personal_rent_buy').value = mode;
-      $('spanPersonalMode').textContent = buyMode ? 'Buy' : 'Rent';
+      $('spanPersonalMode').textContent = buyMode ? t.toggle_buy : t.toggle_rent;
       showView('view-search-personal');
     }
 
     function launchBusinessSearch() {
+      const t = dict[currentLang] || dict.en;
       const buyMode = $('toggle-business-mode').checked;
       const mode = buyMode ? 'buy' : 'rent';
       $('business_rent_buy').value = mode;
-      $('spanBusinessMode').textContent = buyMode ? 'Buy' : 'Rent';
+      $('spanBusinessMode').textContent = buyMode ? t.toggle_buy : t.toggle_rent;
       showView('view-search-business');
     }
 
@@ -865,25 +1656,46 @@
           currentUser = await resp.json();
           isDemoMode = false;
           updateNavbarUserUI();
+          await fetchUserFavorites();
           showView('view-dashboard');
         } else {
           currentUser = null;
+          favorites = [];
+          updateFavCount();
           updateNavbarUserUI();
         }
       } catch (e) {
         currentUser = null;
+        favorites = [];
+        updateFavCount();
         updateNavbarUserUI();
       }
     }
 
+    async function fetchUserFavorites() {
+      if (!currentUser) return;
+      try {
+        const fResp = await fetch('/favorites');
+        if (fResp.ok) {
+          const fData = await fResp.json();
+          favorites = fData.favorites || [];
+          favorites.forEach(f => { currentLocationsMap[f.id] = f; });
+          updateFavCount();
+        }
+      } catch (e) {
+        console.error('Failed to load favorites', e);
+      }
+    }
+
     function updateNavbarUserUI() {
+      const t = dict[currentLang] || dict.en;
       const statusEl = $('navUserStatus');
       const favLink = $('navFavoritesBtn');
       if (currentUser) {
-        statusEl.innerHTML = `👤 Hi, ${currentUser.name} | <a href="#" onclick="logout(); return false;" style="color:var(--brand-light); font-weight:700;">Sign Out</a>`;
+        statusEl.innerHTML = `👤 ${t.nav_hi}, ${currentUser.name} | <a href="#" onclick="logout(); return false;" style="color:var(--brand-light); font-weight:700;">${t.nav_logout}</a>`;
         if (favLink) favLink.style.display = '';
       } else {
-        statusEl.innerHTML = `<button class="btn-login-nav" onclick="showAuthView()">Sign In</button>`;
+        statusEl.innerHTML = `<button class="btn-login-nav" onclick="showAuthView()">${t.nav_login}</button>`;
         if (favLink) favLink.style.display = 'none';
       }
     }
@@ -893,6 +1705,8 @@
         await fetch('/logout', { method: 'POST' });
       } catch(e) {}
       currentUser = null;
+      favorites = [];
+      updateFavCount();
       isDemoMode = true;
       updateNavbarUserUI();
       showView('view-landing');
@@ -900,12 +1714,13 @@
 
     $('authForm').addEventListener('submit', async function(e) {
       e.preventDefault();
+      const t = dict[currentLang] || dict.en;
       const errBox = $('authErrorBox');
       const btn = $('authBtn');
       
       errBox.classList.remove('visible');
       btn.disabled = true;
-      btn.textContent = 'Processing…';
+      btn.textContent = t.auth_processing;
 
       const email = $('auth_email').value;
       const password = $('auth_password').value;
@@ -937,22 +1752,24 @@
         }
 
         const data = await resp.json();
-        currentUser = { email: data.email, name: data.name };
+        currentUser = { email: data.email, name: data.name, id: data.id };
         isDemoMode = false;
         updateNavbarUserUI();
+        await fetchUserFavorites();
         showView('view-dashboard');
       } catch (ex) {
         errBox.textContent = '❌ ' + ex.message;
         errBox.classList.add('visible');
       } finally {
         btn.disabled = false;
-        btn.textContent = currentAuthMode === 'login' ? 'Sign In' : 'Register';
+        btn.textContent = currentAuthMode === 'login' ? t.auth_signin_btn : t.auth_register_btn;
       }
     });
 
     // ── Formatting Utilities ──────────────────────────────────────────────────
     function fmtKZT(n) {
-      if (n == null || n === 'locked') return 'Locked';
+      const t = dict[currentLang] || dict.en;
+      if (n == null || n === 'locked') return t.locked;
       if (!n) return '0 〒';
       return new Intl.NumberFormat('ru-KZ', { style: 'currency', currency: 'KZT', maximumFractionDigits: 0 }).format(n);
     }
@@ -966,10 +1783,12 @@
       $('budgetVal').textContent = fmtKZT(this.value);
     });
     $('top_n').addEventListener('input', function() {
-      $('topNVal').textContent = this.value + ' location' + (this.value > 1 ? 's' : '');
+      const t = dict[currentLang] || dict.en;
+      $('topNVal').textContent = `${this.value} ${t.locations_suffix}`;
     });
     $('personal_top_n').addEventListener('input', function() {
-      $('personalTopNVal').textContent = this.value + ' location' + (this.value > 1 ? 's' : '');
+      const t = dict[currentLang] || dict.en;
+      $('personalTopNVal').textContent = `${this.value} ${t.locations_suffix}`;
     });
 
     // ── Loading steps animation ────────────────────────────────────────────────
@@ -997,21 +1816,22 @@
     }
 
     function startLoading(type) {
+      const t = dict[currentLang] || dict.en;
       const steps = $('loadingOverlay').querySelectorAll('.step-item');
       if (type === 'personal') {
-        $('loadingTitle').textContent = 'Finding apartments near your destination…';
-        steps[0].innerHTML = '<div class="step-dot"></div>Geocoding destination';
-        steps[1].innerHTML = '<div class="step-dot"></div>Fetching apartments from Krisha';
-        steps[2].innerHTML = '<div class="step-dot"></div>Analyzing Convenience & Proximity';
-        steps[3].innerHTML = '<div class="step-dot"></div>Calculating commute distance';
-        steps[4].innerHTML = '<div class="step-dot"></div>Ranking top candidate apartments';
+        $('loadingTitle').textContent = t.load_pers_title;
+        steps[0].innerHTML = `<div class="step-dot"></div>${t.load_pers_s1}`;
+        steps[1].innerHTML = `<div class="step-dot"></div>${t.load_pers_s2}`;
+        steps[2].innerHTML = `<div class="step-dot"></div>${t.load_pers_s3}`;
+        steps[3].innerHTML = `<div class="step-dot"></div>${t.load_pers_s4}`;
+        steps[4].innerHTML = `<div class="step-dot"></div>${t.load_pers_s5}`;
       } else {
-        $('loadingTitle').textContent = 'Scouting business locations…';
-        steps[0].innerHTML = '<div class="step-dot"></div>Fetching physical foot traffic';
-        steps[1].innerHTML = '<div class="step-dot"></div>Resolving OSM competitor maps';
-        steps[2].innerHTML = '<div class="step-dot"></div>Estimating local commercial rents';
-        steps[3].innerHTML = '<div class="step-dot"></div>Calculating scoring formulas';
-        steps[4].innerHTML = '<div class="step-dot"></div>Generating AI business assessment';
+        $('loadingTitle').textContent = t.load_biz_title;
+        steps[0].innerHTML = `<div class="step-dot"></div>${t.load_biz_s1}`;
+        steps[1].innerHTML = `<div class="step-dot"></div>${t.load_biz_s2}`;
+        steps[2].innerHTML = `<div class="step-dot"></div>${t.load_biz_s3}`;
+        steps[3].innerHTML = `<div class="step-dot"></div>${t.load_biz_s4}`;
+        steps[4].innerHTML = `<div class="step-dot"></div>${t.load_biz_s5}`;
       }
       
       $('loadingOverlay').classList.add('visible');
@@ -1023,9 +1843,9 @@
     // ── Location Card Builder ─────────────────────────────────────────────────
     function badgeClass(label) {
       const l = (label || '').toLowerCase();
-      if (l.includes('excellent')) return 'badge-excellent';
-      if (l.includes('good'))      return 'badge-good';
-      if (l.includes('fair'))      return 'badge-fair';
+      if (l.includes('excellent') || l.includes('отлично') || l.includes('өте жақсы')) return 'badge-excellent';
+      if (l.includes('good') || l.includes('хорошо') || l.includes('жақсы')) return 'badge-good';
+      if (l.includes('fair') || l.includes('удовлетворительно') || l.includes('орташа')) return 'badge-fair';
       return 'badge-poor';
     }
 
@@ -1062,12 +1882,13 @@
     }
 
     function barRow(name, value, color) {
+      const t = dict[currentLang] || dict.en;
       if (value === 'locked') {
         return `
         <div class="bar-row">
           <div class="bar-meta">
             <span class="bar-name">${name}</span>
-            <span class="bar-val" style="color:var(--muted)">🔒 Locked</span>
+            <span class="bar-val" style="color:var(--muted)">🔒 ${t.locked}</span>
           </div>
           <div class="bar-track">
             <div class="bar-fill" style="width:0%"></div>
@@ -1088,14 +1909,20 @@
 
     function buildCard(loc, rank, isFavView = false) {
       currentLocationsMap[loc.id] = loc;
+      const t = dict[currentLang] || dict.en;
       const isFav = favorites.some(f => f.id === loc.id);
       const favClass = isFav ? 'btn-fav active' : 'btn-fav';
-      const favText = isFav ? '⭐ Saved' : '☆ Save to Favorites';
+      const favText = isFav ? `⭐ ${t.btn_saved_fav}` : `☆ ${t.btn_save_fav}`;
 
       const score  = loc.final_score;
       const color  = scoreColor(score);
       const rankCls= ['rank-1','rank-2','rank-3'][rank - 1] || 'rank-3';
-      const bCls   = badgeClass(loc.score_label);
+      const localizedLabel = translateScoreLabel(loc.score_label, currentLang);
+      const bCls   = badgeClass(localizedLabel);
+      const locName = loc.name;
+      const locAddr = translateAddress(loc.address, currentLang);
+      const locDistrict = translateDistrict(loc.district, currentLang);
+      const locZone = translateZone(loc.zone, currentLang);
       const mapUrl = `https://2gis.kz/search/${encodeURIComponent(loc.address)}`;
       
       const isPersonal = loc.hasOwnProperty('convenience_score') || loc.hasOwnProperty('directions_url');
@@ -1106,68 +1933,68 @@
         if (isLocked) {
           scoresHtml = `
             <div class="loc-bars" style="min-height:100px;">
-              ${barRow('Convenience Score', 'locked', '#00d4aa')}
-              ${barRow('Safety & Family', 'locked', '#6c63ff')}
-              ${barRow('Entertainment', 'locked', '#ffc107')}
+              ${barRow(t.bar_convenience, 'locked', '#00d4aa')}
+              ${barRow(t.bar_safety, 'locked', '#6c63ff')}
+              ${barRow(t.bar_lifestyle, 'locked', '#ffc107')}
             </div>
           `;
         } else {
           scoresHtml = `
             <div class="loc-bars">
-              ${barRow('Convenience Score', loc.convenience_score, '#00d4aa')}
-              ${barRow('Safety & Family', loc.safety_score, '#6c63ff')}
-              ${barRow('Entertainment', loc.lifestyle_score, '#ffc107')}
+              ${barRow(t.bar_convenience, loc.convenience_score, '#00d4aa')}
+              ${barRow(t.bar_safety, loc.safety_score, '#6c63ff')}
+              ${barRow(t.bar_lifestyle, loc.lifestyle_score, '#ffc107')}
             </div>
           `;
         }
         
-        const rentText = loc.avg_rent_kzt === 'locked' ? '🔒 Locked' : fmtKZT(loc.avg_rent_kzt);
+        const rentText = loc.avg_rent_kzt === 'locked' ? `🔒 ${t.locked}` : fmtKZT(loc.avg_rent_kzt);
 
         return `
         <div class="loc-card">
           <div class="loc-header">
             <div class="loc-rank ${rankCls}">#${rank}</div>
             <div class="loc-name-block">
-              <div class="loc-name">${loc.name}</div>
-              <div class="loc-address">📍 ${loc.address}</div>
+              <div class="loc-name">${locName}</div>
+              <div class="loc-address">📍 ${locAddr}</div>
             </div>
-            <div class="loc-badge ${bCls}">${loc.score_label}</div>
+            <div class="loc-badge ${bCls}">${localizedLabel}</div>
           </div>
 
           <div class="loc-score-big">
             ${scoreRing(score, color)}
-            <div class="score-label">Overall Suitability · ${loc.district} District</div>
+            <div class="score-label">${t.overall_suitability} · ${locDistrict}</div>
           </div>
 
           ${scoresHtml}
 
           <div class="loc-roi">
             <div class="roi-item">
-              <div class="roi-lbl">Rent/Price Estimate</div>
+              <div class="roi-lbl">${t.lbl_rent_estimate}</div>
               <div class="roi-val">${rentText}</div>
             </div>
           </div>
 
           <div class="loc-details">
-            <div class="detail-chip">🏢 Zone <span>${loc.zone}</span></div>
-            ${loc.distance_km != null ? `<div class="detail-chip">📍 Commute <span>${fmtNum(loc.distance_km, 1)} km</span></div>` : ''}
+            <div class="detail-chip">🏢 ${t.chip_zone} <span>${locZone}</span></div>
+            ${loc.distance_km != null ? `<div class="detail-chip">📍 ${t.chip_commute} <span>${fmtNum(loc.distance_km, 1)} km</span></div>` : ''}
           </div>
 
           ${currentUser ? `<button class="${favClass}" data-id="${loc.id}" onclick="toggleFavorite('${loc.id}')">${favText}</button>` : ''}
 
           <a class="map-link" href="${mapUrl}" target="_blank" rel="noopener">
-            🗺️ View Neighborhood on Map ↗
+            ${t.link_map}
           </a>
           
           ${loc.directions_url ? 
             `<a class="map-link" href="${loc.directions_url}" target="_blank" rel="noopener" style="margin-top:-0.8rem; background:rgba(0,212,170,.15); color:var(--accent); border-color:var(--accent);">
-              🚗 Get Directions (2GIS) ↗
+              ${t.link_directions}
             </a>` : ''
           }
           
           ${loc.krisha_link ? 
             `<a class="map-link" href="${loc.krisha_link}" target="_blank" rel="noopener" style="margin-top:-0.8rem; background:rgba(108,99,255,.15); color:var(--brand-light); border-color:var(--brand);">
-              🏢 View Listing on Krisha.kz ↗
+              ${t.link_krisha}
             </a>` : ''
           }
         </div>`;
@@ -1179,40 +2006,40 @@
         if (isLocked) {
           scoresHtml = `
             <div class="loc-bars" style="min-height:130px;">
-              ${barRow('Foot Traffic Density', 'locked', '#00d4aa')}
-              ${barRow('Competitor Proximity', 'locked', '#6c63ff')}
-              ${barRow('Rent Affordability', 'locked', '#ffc107')}
+              ${barRow(t.bar_traffic, 'locked', '#00d4aa')}
+              ${barRow(t.bar_competitors, 'locked', '#6c63ff')}
+              ${barRow(t.bar_affordability, 'locked', '#ffc107')}
             </div>
           `;
           roiHtml = `
             <div class="loc-roi">
               <div class="roi-item">
-                <div class="roi-lbl">Est. Monthly Rent</div>
-                <div class="roi-val">🔒 Locked</div>
+                <div class="roi-lbl">${t.lbl_monthly_rent}</div>
+                <div class="roi-val">🔒 ${t.locked}</div>
               </div>
             </div>
           `;
         } else {
           scoresHtml = `
             <div class="loc-bars">
-              ${barRow('Foot Traffic Density', loc.traffic_score, '#00d4aa')}
-              ${barRow('Competitor Proximity', loc.competitor_gap, '#6c63ff')}
-              ${barRow('Rent Affordability', loc.rent_affordable, '#ffc107')}
-              ${barRow('Demographics Fit', loc.demographics_fit, '#ff6b6b')}
+              ${barRow(t.bar_traffic, loc.traffic_score, '#00d4aa')}
+              ${barRow(t.bar_competitors, loc.competitor_gap, '#6c63ff')}
+              ${barRow(t.bar_affordability, loc.rent_affordable, '#ffc107')}
+              ${barRow(t.bar_demographics, loc.demographics_fit, '#ff6b6b')}
             </div>
           `;
           roiHtml = `
             <div class="loc-roi" style="grid-template-columns: 1fr 1fr;">
               <div class="roi-item">
-                <div class="roi-lbl">Est. Monthly Rent</div>
+                <div class="roi-lbl">${t.lbl_monthly_rent}</div>
                 <div class="roi-val">${fmtKZT(loc.avg_rent_kzt)}</div>
               </div>
               <div class="roi-item">
-                <div class="roi-lbl">Est. Monthly Profit</div>
+                <div class="roi-lbl">${t.lbl_monthly_profit}</div>
                 <div class="roi-val ${loc.est_monthly_profit >= 0 ? 'roi-positive' : 'roi-negative'}">${fmtKZT(loc.est_monthly_profit)}</div>
               </div>
               <div class="roi-item" style="grid-column: 1/-1;">
-                <div class="roi-lbl">Est. Annual ROI</div>
+                <div class="roi-lbl">${t.lbl_annual_roi}</div>
                 <div class="roi-val ${loc.est_annual_roi_pct >= 0 ? 'roi-positive' : 'roi-negative'}">${(loc.est_annual_roi_pct >= 0 ? '+' : '') + fmtNum(loc.est_annual_roi_pct)}%</div>
               </div>
             </div>
@@ -1224,41 +2051,66 @@
           <div class="loc-header">
             <div class="loc-rank ${rankCls}">#${rank}</div>
             <div class="loc-name-block">
-              <div class="loc-name">${loc.name}</div>
-              <div class="loc-address">📍 ${loc.address}</div>
+              <div class="loc-name">${locName}</div>
+              <div class="loc-address">📍 ${locAddr}</div>
             </div>
-            <div class="loc-badge ${bCls}">${loc.score_label}</div>
+            <div class="loc-badge ${bCls}">${localizedLabel}</div>
           </div>
 
           <div class="loc-score-big">
             ${scoreRing(score, color)}
-            <div class="score-label">Overall Score · ${loc.district} District</div>
+            <div class="score-label">${t.overall_score} · ${locDistrict}</div>
           </div>
 
           ${scoresHtml}
           ${roiHtml}
 
           <div class="loc-details">
-            <div class="detail-chip">🏢 Zone <span>${loc.zone}</span></div>
-            <div class="detail-chip">🏪 Competitors <span>${loc.competitor_count === 'locked' ? '🔒' : (loc.competitor_count < 0 ? 'N/A' : loc.competitor_count)}</span></div>
+            <div class="detail-chip">🏢 ${t.chip_zone} <span>${locZone}</span></div>
+            <div class="detail-chip">🏪 ${t.chip_competitors} <span>${loc.competitor_count === 'locked' ? '🔒' : (loc.competitor_count < 0 ? 'N/A' : loc.competitor_count)}</span></div>
           </div>
 
           ${currentUser ? `<button class="${favClass}" data-id="${loc.id}" onclick="toggleFavorite('${loc.id}')">${favText}</button>` : ''}
 
           <a class="map-link" href="${mapUrl}" target="_blank" rel="noopener">
-            🗺️ View Neighborhood on Map ↗
+            ${t.link_map}
           </a>
           ${loc.krisha_link ? 
             `<a class="map-link" href="${loc.krisha_link}" target="_blank" rel="noopener" style="margin-top:-0.8rem; background:rgba(108,99,255,.15); color:var(--brand-light); border-color:var(--brand);">
-              🏢 View Listing on Krisha.kz ↗
+              ${t.link_krisha}
             </a>` : ''
           }
         </div>`;
       }
     }
 
+    function renderCurrentResults(lang) {
+      if (!lastSearchResults) return;
+      const t = dict[lang] || dict.en;
+      const data = lastSearchResults;
+      const payload = lastSearchPayload || {};
+
+      if (currentSearchType === 'business') {
+        const bizName = translateBizType(data.business_type, lang);
+        $('resultsTitle').textContent = `${t.top_commercial_prefix} ${bizName} ${t.in_city} ${data.city}`;
+        $('resultsSubtitle').textContent = `${t.mode_lbl}: ${(payload.rent_or_buy || '').toUpperCase()} · ${t.budget_lbl}: ${fmtKZT(payload.budget)} · ${t.area_lbl}: ${data.area_size} m² · ${t.evaluated_lbl} ${data.total_evaluated} ${t.properties_suffix}`;
+      } else {
+        $('resultsTitle').textContent = `${t.top_apartments_prefix} ${data.destination}`;
+        $('resultsSubtitle').textContent = `${t.mode_lbl}: ${(payload.rent_or_buy || '').toUpperCase()} · ${t.price_range_lbl}: ${fmtKZT(payload.price_min)} - ${fmtKZT(payload.price_max)} · ${t.area_lbl}: ${data.area_size} m² · ${t.evaluated_lbl} ${data.total_evaluated} ${t.apartments_suffix}`;
+      }
+
+      const grid = $('locationsGrid');
+      grid.innerHTML = (data.top_locations || []).map((loc, i) => buildCard(loc, i + 1)).join('');
+      setTimeout(() => {
+        document.querySelectorAll('.bar-fill').forEach(el => {
+          el.style.width = el.dataset.width + '%';
+        });
+      }, 50);
+    }
+
     // ── Markdown → HTML ────────────────────────────────────────────────────────
     function md2html(md) {
+      if (!md) return '';
       const lines = md.split('\n');
       const out = [];
       let i = 0;
@@ -1325,6 +2177,7 @@
     $('scoutForm').addEventListener('submit', async function(e) {
       e.preventDefault();
       currentSearchType = 'business';
+      const t = dict[currentLang] || dict.en;
 
       const btn = $('scoutBtn');
       const err = $('errorBox');
@@ -1334,7 +2187,7 @@
       err.classList.remove('visible');
       results.classList.remove('visible');
       btn.disabled = true;
-      btn.innerHTML = '<div style="width:18px;height:18px;border:2.5px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin 1s linear infinite"></div> Scouting…';
+      btn.innerHTML = `<div style="width:18px;height:18px;border:2.5px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin 1s linear infinite"></div> ${t.btn_scouting}`;
 
       startLoading('business');
 
@@ -1344,7 +2197,8 @@
         budget:          Number($('budget').value),
         area_size:       Number($('area_size').value),
         top_n:           Number($('top_n').value),
-        rent_or_buy:     $('business_rent_buy').value
+        rent_or_buy:     $('business_rent_buy').value,
+        lang: currentLang
       };
 
       try {
@@ -1360,6 +2214,8 @@
         }
 
         const data = await resp.json();
+        lastSearchResults = data;
+        lastSearchPayload = payload;
         clearStepTimers();
         loading.classList.remove('visible');
 
@@ -1374,21 +2230,11 @@
         $('resultsTabs').style.display = 'flex';
         $('tabWorkers').style.display = 'block';
 
-        $('resultsTitle').textContent = `Top scouted commercial sites for ${data.business_type} in ${data.city}`;
-        $('resultsSubtitle').textContent = `Mode: ${payload.rent_or_buy.toUpperCase()} · Budget: ${payload.budget.toLocaleString()} 〒 · Area: ${data.area_size} m² · Evaluated ${data.total_evaluated} properties`;
-
-        const grid = $('locationsGrid');
-        grid.innerHTML = data.top_locations.map((loc, i) => buildCard(loc, i + 1)).join('');
+        renderCurrentResults(currentLang);
 
         // AI report render
         $('aiReportCard').style.display = 'block';
         $('reportContent').innerHTML = md2html(data.report_md);
-
-        setTimeout(() => {
-          document.querySelectorAll('.bar-fill').forEach(el => {
-            el.style.width = el.dataset.width + '%';
-          });
-        }, 100);
 
         results.classList.add('visible');
         results.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -1403,7 +2249,7 @@
         err.classList.add('visible');
       } finally {
         btn.disabled = false;
-        btn.innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg> Scout Locations`;
+        btn.innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg> ${t.btn_scout_biz}`;
       }
     });
 
@@ -1411,6 +2257,7 @@
     $('personalScoutForm').addEventListener('submit', async function(e) {
       e.preventDefault();
       currentSearchType = 'personal';
+      const t = dict[currentLang] || dict.en;
 
       const btn = $('personalScoutBtn');
       const err = $('personalErrorBox');
@@ -1420,7 +2267,7 @@
       err.classList.remove('visible');
       results.classList.remove('visible');
       btn.disabled = true;
-      btn.innerHTML = '<div style="width:18px;height:18px;border:2.5px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin 1s linear infinite"></div> Scouting…';
+      btn.innerHTML = `<div style="width:18px;height:18px;border:2.5px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin 1s linear infinite"></div> ${t.btn_scouting}`;
 
       startLoading('personal');
 
@@ -1431,7 +2278,8 @@
         price_max:       Number($('personal_price_max').value),
         city:            $('personal_city').value,
         area_size:       Number($('personal_area_size').value),
-        top_n:           Number($('personal_top_n').value)
+        top_n:           Number($('personal_top_n').value),
+        lang: currentLang
       };
 
       try {
@@ -1447,6 +2295,8 @@
         }
 
         const data = await resp.json();
+        lastSearchResults = data;
+        lastSearchPayload = payload;
         clearStepTimers();
         loading.classList.remove('visible');
 
@@ -1464,22 +2314,11 @@
         $('locationsTabPanel').classList.add('active');
         $('workersTabPanel').classList.remove('active');
 
-        $('resultsTitle').textContent = `Top properties near ${data.destination}`;
-        $('resultsSubtitle').textContent = `Mode: ${payload.rent_or_buy.toUpperCase()} · Price range: ${payload.price_min.toLocaleString()} - ${payload.price_max.toLocaleString()} 〒 · Area: ${data.area_size} m² · Evaluated ${data.total_evaluated} apartments`;
-
-        const grid = $('locationsGrid');
-        grid.innerHTML = data.top_locations.map((loc, i) => buildCard(loc, i + 1)).join('');
-
-        setTimeout(() => {
-          document.querySelectorAll('.bar-fill').forEach(el => {
-            el.style.width = el.dataset.width + '%';
-          });
-        }, 100);
+        renderCurrentResults(currentLang);
 
         results.classList.add('visible');
         results.scrollIntoView({ behavior: 'smooth', block: 'start' });
 
-        // Scrape listings near the location for fallback panel
         fetchKrisha(payload.city, 'apartment', payload.area_size);
 
       } catch (ex) {
@@ -1489,12 +2328,13 @@
         err.classList.add('visible');
       } finally {
         btn.disabled = false;
-        btn.innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg> Find Housing`;
+        btn.innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg> ${t.btn_find_housing}`;
       }
     });
 
     // ── External Data Fetching ──────────────────────────────────────────────
     async function fetchKrisha(city, btype, area) {
+      const t = dict[currentLang] || dict.en;
       const kCard = $('krishaCard');
       const kGrid = $('krishaGrid');
       const kSpin = $('krishaSpinner');
@@ -1513,25 +2353,26 @@
         kSpin.style.display = 'none';
         
         if (data.length === 0) {
-          kGrid.innerHTML = '<p style="color:var(--muted)">No matching listings found on Krisha.kz.</p>';
+          kGrid.innerHTML = `<p style="color:var(--muted)">${t.krisha_empty}</p>`;
           return;
         }
         
         kGrid.innerHTML = data.map(k => `
           <div class="krisha-item">
-            <div class="krisha-price">${k.price_kzt_str || 'Price on request'}</div>
+            <div class="krisha-price">${k.price_kzt_str || t.krisha_price_req}</div>
             <div class="krisha-title">${k.title}</div>
-            <div class="krisha-address">📍 ${k.address}</div>
-            <a class="krisha-link" href="${k.link}" target="_blank" rel="noopener">View Details ↗</a>
+            <div class="krisha-address">📍 ${translateAddress(k.address, currentLang)}</div>
+            <a class="krisha-link" href="${k.link}" target="_blank" rel="noopener">${t.krisha_view}</a>
           </div>
         `).join('');
       } catch (err) {
         kSpin.style.display = 'none';
-        kGrid.innerHTML = '<p style="color:var(--accent2)">Failed to load Krisha.kz data.</p>';
+        kGrid.innerHTML = `<p style="color:var(--accent2)">${t.krisha_error}</p>`;
       }
     }
 
     async function fetchWorkers(city, btype) {
+      const t = dict[currentLang] || dict.en;
       const wSpin = $('workersSpinner');
       const wBody = $('workersBody');
       wSpin.style.display = 'block';
@@ -1546,10 +2387,10 @@
         if (!res.ok) throw new Error('Workers fetch failed');
         const data = await res.json();
         wSpin.style.display = 'none';
-        wBody.innerHTML = md2html(data.workers_md || "No candidates found.");
+        wBody.innerHTML = md2html(data.workers_md || t.workers_empty);
       } catch(err) {
         wSpin.style.display = 'none';
-        wBody.innerHTML = '<p style="color:var(--accent2)">Failed to access Headhunter Database.</p>';
+        wBody.innerHTML = `<p style="color:var(--accent2)">${t.workers_error}</p>`;
       }
     }
 

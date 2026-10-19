@@ -25,19 +25,22 @@ WEIGHTS = {
 }
 
 SCORE_LABELS = [
-    (85, "Excellent"),
-    (70, "Good"),
-    (55, "Fair"),
-    (40, "Below average"),
-    (0,  "Poor"),
+    (85, {"en": "Excellent",     "ru": "Отлично",       "kk": "Өте жақсы"}),
+    (70, {"en": "Good",          "ru": "Хорошо",        "kk": "Жақсы"}),
+    (55, {"en": "Fair",          "ru": "Средне",        "kk": "Орташа"}),
+    (40, {"en": "Below average", "ru": "Ниже среднего", "kk": "Орташадан төмен"}),
+    (0,  {"en": "Poor",          "ru": "Низкая оценка", "kk": "Төмен"}),
 ]
 
 
-def _label(score: float) -> str:
-    for threshold, label in SCORE_LABELS:
+def _label(score: float, lang: str = "en") -> str:
+    lang = lang.lower() if lang else "en"
+    if lang not in ["en", "ru", "kk"]:
+        lang = "en"
+    for threshold, labels in SCORE_LABELS:
         if score >= threshold:
-            return label
-    return "Poor"
+            return labels[lang]
+    return SCORE_LABELS[-1][1][lang]
 
 
 def _estimate_demographics_fit(
@@ -64,7 +67,7 @@ def _estimate_demographics_fit(
     return 60.0
 
 
-async def score_location(factors: dict) -> dict:
+async def score_location(factors: dict, lang: str = "en") -> dict:
     """
     Parameters
     ----------
@@ -112,11 +115,11 @@ async def score_location(factors: dict) -> dict:
 
     return {
         "final_score": final,
-        "label":       _label(final),
+        "label":       _label(final, lang),
         "breakdown":   breakdown,
         "weights":     WEIGHTS,
         "explanation": (
-            f"Final score {final}/100 ({_label(final)}). "
+            f"Final score {final}/100 ({_label(final, lang)}). "
             f"Traffic: {traffic}×0.35={breakdown['traffic_score']['weighted']}, "
             f"CompetitorGap: {comp_gap}×0.25={breakdown['competitor_gap']['weighted']}, "
             f"Rent: {rent_aff}×0.20={breakdown['rent_affordable']['weighted']}, "

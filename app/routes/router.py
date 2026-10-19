@@ -154,10 +154,59 @@ async def get_me(request: Request):
     if not user:
         raise HTTPException(status_code=401, detail="Not authenticated.")
     return {
+        "id": user["id"],
         "email": user["email"],
         "name": user["name"],
         "phone_number": user["phone_number"]
     }
+
+
+# ── Favorites Endpoints ───────────────────────────────────────────────────────
+
+@router.get(
+    "/favorites",
+    tags=["Favorites"],
+    summary="Get saved favorites for the authenticated user",
+)
+async def get_favorites(request: Request):
+    user = get_current_user(request)
+    if not user:
+        raise HTTPException(status_code=401, detail="Not authenticated.")
+    from app.db import get_user_favorites
+    favs = get_user_favorites(user["id"])
+    return {"favorites": favs}
+
+
+@router.post(
+    "/favorites",
+    tags=["Favorites"],
+    summary="Save a location to the authenticated user's favorites",
+)
+async def save_favorite(request: Request):
+    user = get_current_user(request)
+    if not user:
+        raise HTTPException(status_code=401, detail="Not authenticated.")
+    body = await request.json()
+    location_id = body.get("id")
+    if not location_id:
+        raise HTTPException(status_code=400, detail="Missing location id.")
+    from app.db import add_user_favorite
+    add_user_favorite(user["id"], str(location_id), body)
+    return {"status": "ok", "id": location_id}
+
+
+@router.delete(
+    "/favorites/{location_id}",
+    tags=["Favorites"],
+    summary="Remove a location from the authenticated user's favorites",
+)
+async def delete_favorite(location_id: str, request: Request):
+    user = get_current_user(request)
+    if not user:
+        raise HTTPException(status_code=401, detail="Not authenticated.")
+    from app.db import remove_user_favorite
+    remove_user_favorite(user["id"], str(location_id))
+    return {"status": "ok", "id": location_id}
 
 
 # ── Main Scout Endpoints ──────────────────────────────────────────────────────

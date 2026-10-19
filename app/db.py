@@ -42,6 +42,19 @@ def init_db():
             timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
         )
     """)
+
+    # User favorites table
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS favorites (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            location_id TEXT NOT NULL,
+            location_data TEXT NOT NULL,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE(user_id, location_id),
+            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+        )
+    """)
     
     conn.commit()
     conn.close()
@@ -118,3 +131,46 @@ def get_search_count(ip_address: str, cookie_id: str | None) -> int:
         ).fetchone()
     conn.close()
     return row["cnt"] if row else 0
+
+
+# ── User Favorites ────────────────────────────────────────────────────────────
+def get_user_favorites(user_id: int) -> list[dict]:
+    """Retrieves all saved favorites for a user."""
+    conn = get_db_connection()
+    rows = conn.execute(
+        "SELECT location_id, location_data FROM favorites WHERE user_id = ? ORDER BY id DESC",
+        (user_id,)
+    ).fetchall()
+    conn.close()
+    import json
+    favs = []
+    for r in rows:
+        try:
+            data = json.loads(r["location_data"])
+            favs.append(data)
+        except Exception:
+            pass
+    return favs
+
+
+def add_user_favorite(user_id: int, location_id: str, location_data: dict) -> None:
+    """Saves a location to user's favorites."""
+    import json
+    conn = get_db_connection()
+    conn.execute(
+        "INSERT OR REPLACE INTO favorites (user_id, location_id, location_data) VALUES (?, ?, ?)",
+        (user_id, str(location_id), json.dumps(location_data, ensure_ascii=False))
+    )
+    conn.commit()
+    conn.close()
+
+
+def remove_user_favorite(user_id: int, location_id: str) -> None:
+    """Removes a location from user's favorites."""
+    conn = get_db_connection()
+    conn.execute(
+        "DELETE FROM favorites WHERE user_id = ? AND location_id = ?",
+        (user_id, str(location_id))
+    )
+    conn.commit()
+    conn.close()

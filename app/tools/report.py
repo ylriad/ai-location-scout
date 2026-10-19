@@ -27,6 +27,7 @@ def _build_prompt(
     city:           str,
     budget:         float,
     area_size:      int,
+    lang:           str = "en",
 ) -> str:
     location_blocks = []
     for idx, loc in enumerate(top3, 1):
@@ -53,6 +54,14 @@ def _build_prompt(
 
     locations_text = "\n".join(location_blocks)
 
+    lang_code = lang.lower() if lang else "en"
+    if lang_code == "ru":
+        lang_instruction = "CRITICAL REQUIREMENT: Write the entire report in Russian (на русском языке)."
+    elif lang_code == "kk":
+        lang_instruction = "CRITICAL REQUIREMENT: Write the entire report in Kazakh (қазақ тілінде)."
+    else:
+        lang_instruction = "CRITICAL REQUIREMENT: Write the entire report in English."
+
     return f"""You are a senior business analytics consultant specialising in retail and hospitality site selection in Central Asia.
 
 A client wants to open a **{business_type}** in **{city}**.
@@ -62,6 +71,8 @@ A client wants to open a **{business_type}** in **{city}**.
 Below are the top 3 candidate locations scored by our AI location-scout system:
 
 {locations_text}
+
+{lang_instruction}
 
 Please write a concise yet comprehensive business report (600–900 words) covering:
 
@@ -91,6 +102,7 @@ def _template_report(
     city:            str,
     budget:          float,
     area_size:       int,
+    lang:            str = "en",
 ) -> str:
     lines = [
         f"# Business Location Scout Report",
@@ -161,6 +173,7 @@ async def generate_report(
     city:            str   = "Almaty",
     budget:          float = 10_000,
     area_size:       int   = 50,
+    lang:            str   = "en",
 ) -> dict:
     """
     Returns:
@@ -169,12 +182,12 @@ async def generate_report(
     """
     if not ANTHROPIC_API_KEY:
         logger.warning("ANTHROPIC_API_KEY not set – using template-based report.")
-        report = _template_report(top3_locations, business_type, city, budget, area_size)
+        report = _template_report(top3_locations, business_type, city, budget, area_size, lang=lang)
         return {"report_md": report, "source": "template"}
 
     try:
         client  = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
-        prompt  = _build_prompt(top3_locations, business_type, city, budget, area_size)
+        prompt  = _build_prompt(top3_locations, business_type, city, budget, area_size, lang=lang)
         message = client.messages.create(
             model       = CLAUDE_MODEL,
             max_tokens  = 2048,
@@ -185,5 +198,5 @@ async def generate_report(
 
     except Exception as exc:
         logger.error("Claude API error: %s – falling back to template.", exc)
-        report = _template_report(top3_locations, business_type, city, budget, area_size)
+        report = _template_report(top3_locations, business_type, city, budget, area_size, lang=lang)
         return {"report_md": report, "source": "template_fallback"}
