@@ -1,0 +1,899 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AI Location Scout — Презентация проекта</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0b0d17;
+      --bg-surface: #141728;
+      --card: rgba(22, 26, 46, 0.85);
+      --card-border: rgba(108, 99, 255, 0.22);
+      --brand: #6c63ff;
+      --brand-light: #8b84ff;
+      --accent: #00d4aa;
+      --accent-coral: #ff6b6b;
+      --gold: #ffd700;
+      --text: #f0f2fd;
+      --muted: #8b8ea8;
+      --radius: 18px;
+    }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow-x: hidden;
+      user-select: none;
+    }
+
+    /* Ambient glow */
+    body::before {
+      content: '';
+      position: fixed; inset: 0;
+      background:
+        radial-gradient(circle 600px at 15% 15%, rgba(108,99,255,0.12), transparent 70%),
+        radial-gradient(circle 500px at 85% 85%, rgba(0,212,170,0.1), transparent 70%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* TOP BAR */
+    header {
+      position: sticky; top: 0; z-index: 50;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0.8rem 2.5rem;
+      background: rgba(11, 13, 23, 0.88);
+      backdrop-filter: blur(20px);
+      border-bottom: 1px solid var(--card-border);
+    }
+    .header-logo {
+      display: flex; align-items: center; gap: 0.8rem;
+      font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 1.1rem;
+      color: #fff;
+    }
+    .header-badge {
+      background: rgba(108,99,255,0.18); color: var(--brand-light);
+      border: 1px solid rgba(108,99,255,0.35); padding: 3px 10px; border-radius: 20px;
+      font-size: 0.72rem; font-weight: 600;
+    }
+    .header-controls {
+      display: flex; align-items: center; gap: 1rem;
+    }
+    .btn-nav {
+      background: var(--bg-surface); border: 1px solid var(--card-border);
+      color: var(--text); padding: 6px 14px; border-radius: 8px; font-size: 0.82rem;
+      font-weight: 600; cursor: pointer; transition: all 0.2s;
+    }
+    .btn-nav:hover { background: rgba(108,99,255,0.25); border-color: var(--brand); }
+    .slide-indicator {
+      font-size: 0.85rem; color: var(--muted); font-weight: 600; min-width: 60px; text-align: center;
+    }
+
+    /* PROGRESS BAR */
+    .progress-bar-container {
+      width: 100%; height: 3px; background: rgba(255,255,255,0.06);
+    }
+    .progress-bar {
+      height: 100%; width: 0%; background: linear-gradient(90deg, var(--brand), var(--accent));
+      transition: width 0.3s ease;
+    }
+
+    /* SLIDE STAGE */
+    main {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 2.5rem 2rem;
+      position: relative;
+      z-index: 1;
+    }
+    .slide-wrapper {
+      width: 100%;
+      max-width: 1180px;
+      min-height: 640px;
+      background: var(--card);
+      border: 1px solid var(--card-border);
+      border-radius: var(--radius);
+      box-shadow: 0 16px 50px rgba(0,0,0,0.45);
+      backdrop-filter: blur(14px);
+      padding: 3rem 3.5rem;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      animation: fadeIn 0.35s ease forwards;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(12px) scale(0.99); }
+      to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+
+    /* SLIDE TYPOGRAPHY */
+    .slide-tag {
+      display: inline-flex; align-items: center; gap: 0.4rem;
+      font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.1em;
+      font-weight: 700; color: var(--accent); margin-bottom: 0.6rem;
+    }
+    .slide-title {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: clamp(1.8rem, 3.2vw, 2.5rem);
+      font-weight: 800;
+      line-height: 1.2;
+      margin-bottom: 0.8rem;
+      background: linear-gradient(135deg, #fff 20%, var(--brand-light) 75%, var(--accent) 100%);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    }
+    .slide-sub {
+      color: var(--muted);
+      font-size: 1.05rem;
+      line-height: 1.5;
+      margin-bottom: 2rem;
+      max-width: 900px;
+    }
+
+    /* CONTENT GRIDS */
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; flex: 1; }
+    .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1.5rem; flex: 1; }
+    .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1.2rem; flex: 1; }
+
+    .feature-card {
+      background: rgba(14, 17, 32, 0.7);
+      border: 1px solid rgba(255,255,255,0.06);
+      border-radius: 14px;
+      padding: 1.5rem 1.6rem;
+      display: flex;
+      flex-direction: column;
+      transition: transform 0.2s, border-color 0.2s;
+    }
+    .feature-card:hover {
+      transform: translateY(-3px);
+      border-color: var(--card-border);
+    }
+    .feature-card h3 {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 1.15rem; font-weight: 700; margin-bottom: 0.6rem; color: #fff;
+      display: flex; align-items: center; gap: 0.5rem;
+    }
+    .feature-card p, .feature-card li {
+      font-size: 0.92rem; color: var(--muted); line-height: 1.6;
+    }
+    .feature-card ul { list-style: none; margin-top: 0.5rem; }
+    .feature-card li { margin-bottom: 0.4rem; display: flex; align-items: flex-start; gap: 0.5rem; }
+    .feature-card li::before { content: '▸'; color: var(--brand-light); font-weight: bold; }
+
+    /* CODE BOX */
+    .code-box {
+      background: #080911;
+      border: 1px solid rgba(108,99,255,0.25);
+      border-radius: 12px;
+      padding: 1.2rem;
+      font-family: 'Fira Code', monospace;
+      font-size: 0.85rem;
+      color: #cbd5e1;
+      line-height: 1.55;
+      overflow-x: auto;
+    }
+    .code-hl-k { color: #f472b6; font-weight: 600; }
+    .code-hl-f { color: #38bdf8; font-weight: 600; }
+    .code-hl-s { color: #4ade80; }
+    .code-hl-c { color: #64748b; font-style: italic; }
+
+    /* SCREENSHOT PLACEHOLDER */
+    .screenshot-placeholder {
+      background: rgba(11, 14, 28, 0.8);
+      border: 2px dashed rgba(108,99,255,0.4);
+      border-radius: 14px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem;
+      text-align: center;
+      min-height: 220px;
+      position: relative;
+    }
+    .screenshot-placeholder svg {
+      width: 44px; height: 44px; stroke: var(--brand-light); margin-bottom: 0.8rem; opacity: 0.8;
+    }
+    .screenshot-placeholder .title {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 0.95rem; font-weight: 700; color: #fff; margin-bottom: 0.3rem;
+    }
+    .screenshot-placeholder .desc {
+      font-size: 0.8rem; color: var(--muted); max-width: 380px;
+    }
+
+    /* COMPARISON TABLE */
+    table.comp-table {
+      width: 100%; border-collapse: collapse; font-size: 0.9rem; margin-top: 0.5rem;
+    }
+    table.comp-table th, table.comp-table td {
+      padding: 1rem 1.2rem; text-align: left; border-bottom: 1px solid rgba(255,255,255,0.08);
+    }
+    table.comp-table th {
+      background: rgba(108,99,255,0.12); color: #fff; font-family: 'Space Grotesk', sans-serif; font-size: 0.95rem;
+    }
+    table.comp-table tr:hover td { background: rgba(255,255,255,0.02); }
+    .badge-comp {
+      display: inline-block; padding: 2px 8px; border-radius: 6px; font-size: 0.75rem; font-weight: 700;
+    }
+    .badge-biz { background: rgba(108,99,255,0.2); color: var(--brand-light); }
+    .badge-pers { background: rgba(0,212,170,0.18); color: var(--accent); }
+
+    /* TITLE SLIDE SPECIFIC */
+    .title-slide-content {
+      margin: auto 0;
+      text-align: left;
+    }
+    .meta-authors {
+      margin-top: 2.5rem;
+      display: flex;
+      gap: 3rem;
+      padding-top: 2rem;
+      border-top: 1px solid rgba(255,255,255,0.1);
+    }
+    .meta-box h4 {
+      font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); margin-bottom: 0.4rem;
+    }
+    .meta-box p {
+      font-family: 'Space Grotesk', sans-serif; font-size: 1.15rem; font-weight: 700; color: #fff;
+    }
+
+    /* QR SLIDE */
+    .qr-container {
+      display: flex; align-items: center; justify-content: center; gap: 3.5rem; flex: 1;
+    }
+    .qr-card {
+      background: #ffffff; padding: 1.2rem; border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+      display: flex; flex-direction: column; align-items: center; width: 230px;
+    }
+    .qr-box {
+      width: 190px; height: 190px; border: 2px dashed #4a42cc; border-radius: 8px;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      color: #4a42cc; font-size: 0.78rem; font-weight: 700; text-align: center; padding: 1rem;
+      background: #f8f9ff;
+    }
+    .qr-card span {
+      margin-top: 0.8rem; font-size: 0.78rem; font-weight: 700; color: #1e1b4b;
+    }
+
+    /* FOOTER CONTROLS */
+    footer {
+      padding: 1rem 2.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      color: var(--muted);
+      font-size: 0.82rem;
+      border-top: 1px solid rgba(255,255,255,0.05);
+    }
+    .key-hints { display: flex; gap: 1.2rem; }
+    .key {
+      background: rgba(255,255,255,0.08); padding: 2px 7px; border-radius: 4px; color: #fff; font-size: 0.75rem;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- TOP BAR -->
+  <header>
+    <div class="header-logo">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+        <path d="M12 2L2 22h20L12 2z"/>
+      </svg>
+      <span>AI Location Scout</span>
+      <span class="header-badge">Торайгыров университет</span>
+    </div>
+    <div class="header-controls">
+      <button class="btn-nav" onclick="prevSlide()">← Назад</button>
+      <span class="slide-indicator" id="slideNum">1 / 15</span>
+      <button class="btn-nav" onclick="nextSlide()">Вперед →</button>
+      <button class="btn-nav" onclick="toggleFullscreen()" title="Полноэкранный режим">⛶</button>
+    </div>
+  </header>
+
+  <!-- PROGRESS -->
+  <div class="progress-bar-container">
+    <div class="progress-bar" id="progressBar"></div>
+  </div>
+
+  <!-- SLIDE CONTAINER -->
+  <main>
+    <div class="slide-wrapper" id="slideStage">
+      <!-- Slides dynamically rendered here -->
+    </div>
+  </main>
+
+  <!-- FOOTER -->
+  <footer>
+    <div>AI Location Scout · Интеллектуальный геоаналитический комплекс</div>
+    <div class="key-hints">
+      <span>Навигация: <span class="key">←</span> <span class="key">→</span> или <span class="key">Пробел</span></span>
+      <span>Полный экран: <span class="key">F</span></span>
+    </div>
+  </footer>
+
+  <script>
+    const slides = [
+      // ── SLIDE 1: ТИТУЛЬНЫЙ ──
+      {
+        tag: "ДИПЛОМНЫЙ / ИССЛЕДОВАТЕЛЬСКИЙ ПРОЕКТ",
+        title: "AI Location Scout",
+        sub: "Интеллектуальная геоаналитическая платформа подбора коммерческих и жилых локаций на основе машинного анализа пространственных данных, открытого рынка и генеративного AI",
+        html: `
+          <div class="title-slide-content">
+            <div style="display:flex; gap:1rem; margin-bottom:2rem;">
+              <span class="badge-comp badge-biz" style="font-size:0.85rem; padding:6px 14px;">🏢 Для Бизнеса и Ритейла</span>
+              <span class="badge-comp badge-pers" style="font-size:0.85rem; padding:6px 14px;">🎓 Для Студентов и Арендаторов</span>
+            </div>
+            
+            <div class="meta-authors">
+              <div class="meta-box">
+                <h4>Авторы проекта</h4>
+                <p>Тутенова Алия<br>Ефименко Ксения</p>
+              </div>
+              <div class="meta-box">
+                <h4>Университет</h4>
+                <p>Торайгыров университет<br><span style="font-size:0.9rem; color:var(--muted); font-weight:400;">Кафедра компьютерных наук и ИТ</span></p>
+              </div>
+              <div class="meta-box">
+                <h4>Локация и Год</h4>
+                <p>Павлодар / Алматы<br><span style="font-size:0.9rem; color:var(--muted); font-weight:400;">2026 год</span></p>
+              </div>
+            </div>
+          </div>
+        `
+      },
+
+      // ── SLIDE 2: ПРОБЛЕМА И ЦЕЛЬ ──
+      {
+        tag: "ОБОСНОВАНИЕ ПРОЕКТА",
+        title: "Проблема, Актуальность и Цель",
+        sub: "Почему классические доски объявлений больше не отвечают запросам современного рынка недвижимости и бизнеса.",
+        html: `
+          <div class="grid-2">
+            <div class="feature-card" style="border-left: 3px solid var(--accent-coral);">
+              <h3>⚠️ Текущие Проблемы Рынка</h3>
+              <ul>
+                <li><strong>Высокий риск банкротства бизнеса:</strong> Более 60% торговых точек и кофеен закрываются в первый же год из-за ошибки в выборе гео-локации и незамеченных конкурентов.</li>
+                <li><strong>«Слепой» поиск жилья студентами:</strong> Арендаторы тратят недели на просмотры, не зная реальной криминогенной обстановки, времени пути до кампуса и уровня шума.</li>
+                <li><strong>Фрагментация информации:</strong> Цены — на Krisha.kz, маршруты — в 2GIS, кандидаты — на HeadHunter, а картографический контекст — в OSM. Нет единого инструмента.</li>
+              </ul>
+            </div>
+            
+            <div class="feature-card" style="border-left: 3px solid var(--accent);">
+              <h3>🎯 Главная Цель Проекта</h3>
+              <p style="font-size:1.02rem; margin-bottom:1rem; color:#fff;">
+                Разработать <strong>двухстороннюю AI-платформу</strong> автоматического многофакторного скоринга и аналитики объектов недвижимости в городе Алматы.
+              </p>
+              <ul>
+                <li><strong>Математическая оценка:</strong> Перевод субъективных описаний объявлений в объективный скоринговый балл от 0 до 100.</li>
+                <li><strong>Генеративный консалтинг:</strong> Формирование экспертных бизнес-отчетов с помощью Claude 3.5 Sonnet.</li>
+                <li><strong>Индивидуальный опыт:</strong> Персонализация под студента или сетевой бизнес.</li>
+              </ul>
+            </div>
+          </div>
+        `
+      },
+
+      // ── SLIDE 3: ЦЕЛЕВАЯ АУДИТОРИЯ ──
+      {
+        tag: "ПОЛЬЗОВАТЕЛЬСКИЕ СЕГМЕНТЫ",
+        title: "Целевая Аудитория Платформы",
+        sub: "Продукт спроектирован по двухсторонней B2C & B2B модели с независимыми сценариями использования.",
+        html: `
+          <div class="grid-2">
+            <div class="feature-card">
+              <h3>🎓 Сегмент А: Студенты и Арендаторы (B2C)</h3>
+              <p>Студенты вузов Алматы (КБТУ, КазНУ, СДУ, Сатпаев), молодые специалисты и экспаты.</p>
+              <ul style="margin-top:1rem;">
+                <li><strong>Ключевая задача:</strong> Найти квартиру в удобном радиусе от учебного корпуса.</li>
+                <li><strong>Критерии отбора:</strong> Пешая доступность, близость метро/остановок, безопасность района, наличие продуктовых магазинов и парков.</li>
+                <li><strong>Ценность:</strong> Прямая ссылка на маршрут 2GIS, честная цена и прозрачный индекс пригодности района.</li>
+              </ul>
+            </div>
+            
+            <div class="feature-card">
+              <h3>💼 Сегмент Б: Малый Бизнес и Ритейл (B2B)</h3>
+              <p>Основатели кофеен, ресторанов, фитнес-залов, салонов красоты и розничных магазинов.</p>
+              <ul style="margin-top:1rem;">
+                <li><strong>Ключевая задача:</strong> Открыть прибыльную точку с максимальным входящим трафиком.</li>
+                <li><strong>Критерии отбора:</strong> Плотность пешеходов, отсутствие прямого засилья конкурентов (competitor gap), окупаемость аренды (ROI), доступность сотрудников.</li>
+                <li><strong>Ценность:</strong> Анализ окупаемости и сценарный AI-отчет уровня консалтинговых агентств за секунды.</li>
+              </ul>
+            </div>
+          </div>
+        `
+      },
+
+      // ── SLIDE 4: НАУЧНАЯ НОВИЗНА ──
+      {
+        tag: "ИННОВАЦИОННЫЙ ПОДХОД",
+        title: "Научная Новизна и Отличия от Аналогов",
+        sub: "Переход от пассивного каталога объявлений к проактивной предиктивной аналитике.",
+        html: `
+          <div class="grid-3">
+            <div class="feature-card">
+              <h3>📊 Мультимодальный Скоринг</h3>
+              <p>Объединение в единой взвешенной модели физических координат, POI из OpenStreetMap, цен реального рынка и плотности городской активности вместо чтения рекламного текста риелторов.</p>
+            </div>
+            <div class="feature-card">
+              <h3>🤖 Агентный Консалтинг</h3>
+              <p>Интеграция передовой LLM-модели (Claude 3.5 Sonnet) для синтеза SWOT-анализа, портрета целевого потребителя и сценарного стресс-теста локации в режиме реального времени.</p>
+            </div>
+            <div class="feature-card">
+              <h3>🗺️ Локальная Адаптация</h3>
+              <p>Глубокая оптимизация под специфику Казахстана: учет 8 административных районов Алматы, связка с Krisha.kz, навигацией 2GIS, базой HeadHunter.kz и поддержка трех языков (KZ/RU/EN).</p>
+            </div>
+          </div>
+          <div style="margin-top:1.5rem; background:rgba(108,99,255,0.1); border:1px solid var(--card-border); border-radius:12px; padding:1.2rem; display:flex; align-items:center; gap:1.2rem;">
+            <div style="font-size:2rem;">💡</div>
+            <div style="font-size:0.92rem; color:var(--text); line-height:1.5;">
+              <strong>Главный сдвиг парадигмы:</strong> Пользователь задает не просто фильтр по цене, а свою <em>бизнес-цель</em> или <em>конечную точку учебы</em>. Алгоритм рассчитывает пространственную пригодность математически.
+            </div>
+          </div>
+        `
+      },
+
+      // ── SLIDE 5: АРХИТЕКТУРА СИСТЕМЫ ──
+      {
+        tag: "АРХИТЕКТУРНЫЙ КАРКАС",
+        title: "Архитектура Платформы",
+        sub: "Модульный микросервисный дизайн на асинхронном стеке Python 3.13 и FastAPI.",
+        html: `
+          <div class="grid-2">
+            <div class="feature-card">
+              <h3>⚙️ Технологический Стек</h3>
+              <ul>
+                <li><strong>Backend:</strong> FastAPI (Python 3.13), Uvicorn ASGI, Pydantic v2 (строгая валидация схем).</li>
+                <li><strong>База данных:</strong> SQLite 3 в WAL-режиме с пулом сессий, таблицы <code>users</code>, <code>favorites</code>, <code>search_logs</code>.</li>
+                <li><strong>Безопасность:</strong> Хеширование паролей Argon2 / PBKDF2-SHA256, HTTP-Only сессионные cookies.</li>
+                <li><strong>Frontend:</strong> Нативный чистый Single Page Application (ES6+, CSS Variables, responsive grid), без тяжелых сторонних фреймворков.</li>
+              </ul>
+            </div>
+            
+            <div class="screenshot-placeholder">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+                <line x1="8" y1="21" x2="16" y2="21"></line>
+                <line x1="12" y1="17" x2="12" y2="21"></line>
+              </svg>
+              <div class="title">[ Место для Скриншота: Архитектурная диаграмма ]</div>
+              <div class="desc">Схема взаимодействия: Клиент ⇄ FastAPI Router ⇄ Agent Core (Personal & Business) ⇄ Внешние API (2GIS, Krisha, OSM, Claude) ⇄ SQLite DB</div>
+            </div>
+          </div>
+        `
+      },
+
+      // ── SLIDE 6: КАК РАБОТАЕТ КОД: БИЗНЕС-СКОРИНГ ──
+      {
+        tag: "ИНЖЕНЕРНАЯ РЕАЛИЗАЦИЯ: БИЗНЕС",
+        title: "Как Работает Код: Алгоритм Скоринга Бизнеса",
+        sub: "Математическое моделирование привлекательности коммерческой точки (app/tools/scoring.py).",
+        html: `
+          <div class="grid-2">
+            <div class="code-box">
+<span class="code-hl-c"># Формула взвешенного бизнес-скоринга</span>
+WEIGHTS = {
+    <span class="code-hl-s">"traffic_score"</span>:    <span class="code-hl-k">0.35</span>,  <span class="code-hl-c"># Пешеходный трафик</span>
+    <span class="code-hl-s">"competitor_gap"</span>:   <span class="code-hl-k">0.25</span>,  <span class="code-hl-c"># Ниша среди конкурентов</span>
+    <span class="code-hl-s">"rent_affordable"</span>:  <span class="code-hl-k">0.20</span>,  <span class="code-hl-c"># Доступность ставки</span>
+    <span class="code-hl-s">"demographics_fit"</span>: <span class="code-hl-k">0.20</span>,  <span class="code-hl-c"># Соответствие ЦА</span>
+}
+
+final_score = (
+    traffic * <span class="code-hl-k">0.35</span> +
+    comp_gap * <span class="code-hl-k">0.25</span> +
+    rent_aff * <span class="code-hl-k">0.20</span> +
+    demo_fit * <span class="code-hl-k">0.20</span>
+)
+
+<span class="code-hl-c"># Финансовый блок ROI и прибыли</span>
+est_profit = (est_revenue * margin) - rent_kzt - op_costs
+roi_pct = (est_profit * <span class="code-hl-k">12</span>) / (capex + <span class="code-hl-k">0.001</span>) * <span class="code-hl-k">100</span>
+            </div>
+            
+            <div class="feature-card">
+              <h3>🔍 Аналитические Механизмы</h3>
+              <ul>
+                <li><strong>Traffic Score (35%):</strong> Вычисляется по близости к узлам притяжения (метро, пересадочные узлы, ТРЦ) с логарифмической шкалой плотности.</li>
+                <li><strong>Competitor Gap (25%):</strong> Через Overpass API ищет заведения категории в радиусе 500-1000м. Оценивает баланс: наличие синергетического трафика без прямого перенасыщения.</li>
+                <li><strong>Rent Affordability (20%):</strong> Отношение бюджета клиента к медианной арендной ставке района по базе Krisha.kz.</li>
+                <li><strong>Financial Forecasting:</strong> Прогнозирование среднего чека, чистой месячной прибыли и годовой окупаемости (ROI %).</li>
+              </ul>
+            </div>
+          </div>
+        `
+      },
+
+      // ── SLIDE 7: КАК РАБОТАЕТ КОД: ПЕРСОНАЛЬНЫЙ СКОРИНГ ──
+      {
+        tag: "ИНЖЕНЕРНАЯ РЕАЛИЗАЦИЯ: ЖИЛЬЕ",
+        title: "Как Работает Код: Студенческий и Жилой Поиск",
+        sub: "Геокодирование пункта назначения и расчет пространственного комфорта (app/agent/personal_agent.py).",
+        html: `
+          <div class="grid-2">
+            <div class="code-box">
+<span class="code-hl-c"># Персональная формула пригодности жилья</span>
+<span class="code-hl-k">async def</span> <span class="code-hl-f">score_apartment</span>(loc, target_coord):
+    dist_km = haversine_distance(
+        loc.lat, loc.lon, target_coord.lat, target_coord.lon
+    )
+    
+    <span class="code-hl-c"># Комфорт пути (экспоненциальный спад при удалении)</span>
+    commute_score = max(<span class="code-hl-k">0</span>, <span class="code-hl-k">100</span> - (dist_km * <span class="code-hl-k">12</span>))
+    
+    <span class="code-hl-c"># Итоговый скоринг жилья</span>
+    final_score = (
+        convenience * <span class="code-hl-k">0.40</span> +  <span class="code-hl-c"># Магазины, транспорт</span>
+        safety * <span class="code-hl-k">0.30</span> +       <span class="code-hl-c"># Освещенность, статистика</span>
+        lifestyle * <span class="code-hl-k">0.30</span>     <span class="code-hl-c"># Парки, спорт, кафе</span>
+    )
+    
+    <span class="code-hl-c"># Ссылка на прямой навигационный маршрут 2GIS</span>
+    route_url = f<span class="code-hl-s">"https://2gis.kz/routeSearch/rsType/car/to/{loc.lon},{loc.lat}"</span>
+            </div>
+            
+            <div class="feature-card">
+              <h3>📍 Логика Персонального Агента</h3>
+              <ul>
+                <li><strong>Геокодирование точки притяжения:</strong> Пользователь пишет «КБТУ», «Сатпаев» или адрес работы — система мгновенно вычисляет координаты.</li>
+                <li><strong>Формула гаверсинусов:</strong> Точный расчет дистанции по сфере Земли с учетом реальных транспортных коридоров.</li>
+                <li><strong>Три фактора комфорта:</strong>
+                  <br>1. <em>Convenience:</em> аптеки, супермаркеты, метро;
+                  <br>2. <em>Safety & Family:</em> спокойные дворы, освещенность;
+                  <br>3. <em>Entertainment:</em> коворкинги, студенческие столовые.
+                </li>
+                <li><strong>Прямая навигация:</strong> Генерация ссылки для мгновенного построения маршрута пешком или на авто в 2GIS.</li>
+              </ul>
+            </div>
+          </div>
+        `
+      },
+
+      // ── SLIDE 8: ИСТОЧНИКИ ДАННЫХ И ИНТЕГРАЦИИ ──
+      {
+        tag: "ЭКОСИСТЕМА И ИСТОЧНИКИ",
+        title: "Внешние Интеграции и Потоки Данных",
+        sub: "Синтез пяти независимых источников данных в единый аналитический конвейер.",
+        html: `
+          <div class="grid-4">
+            <div class="feature-card">
+              <h3>🗺️ 2GIS (2гис)</h3>
+              <p>Прямой геокодинг адресов, картографические карточки объектов и построение интерактивных маршрутов к кампусу или офису.</p>
+            </div>
+            <div class="feature-card">
+              <h3>🌐 OpenStreetMap</h3>
+              <p>Overpass API для сканирования конкурентов в радиусе 1 км, станций метро, парков, скверов и инфраструктурных точек.</p>
+            </div>
+            <div class="feature-card">
+              <h3>🏢 Krisha.kz</h3>
+              <p>Парсинг рыночных предложений по аренде и продаже недвижимости для сверки медианных цен и предоставления прямых ссылок.</p>
+            </div>
+            <div class="feature-card">
+              <h3>🧑‍💼 HeadHunter.kz</h3>
+              <p>Поиск и агрегация резюме кандидатов (бариста, повара, администраторы) прямо в районе найденного помещения.</p>
+            </div>
+          </div>
+          <div style="margin-top:1.5rem;" class="feature-card">
+            <h3>🤖 Anthropic Claude 3.5 Sonnet</h3>
+            <p>Генерация структурированного экспертного отчета: исполнительное резюме, детальный разбор рисков, портрет аудитории и рекомендации по запуску бизнеса на выбранном языке (EN/RU/KZ).</p>
+          </div>
+        `
+      },
+
+      // ── SLIDE 9: РАЗЛИЧИЯ ВЕРСИЙ ДЛЯ БИЗНЕСА И ЖИЛЬЯ ──
+      {
+        tag: "ФУНКЦИОНАЛЬНОЕ СРАВНЕНИЕ",
+        title: "Различия: Коммерческий vs Жилой Поиск",
+        sub: "Глубокая дифференциация алгоритмов и пользовательского пути под разные сценарии.",
+        html: `
+          <table class="comp-table">
+            <thead>
+              <tr>
+                <th>Характеристика</th>
+                <th>🏢 Для Бизнеса и Ритейла</th>
+                <th>🎓 Для Студентов и Жилья</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>Ключевой фокус</strong></td>
+                <td>Максимизация прибыли, проходимости и окупаемости</td>
+                <td>Минимизация времени пути, комфорт и безопасность</td>
+              </tr>
+              <tr>
+                <td><strong>Входные данные</strong></td>
+                <td>Категория бизнеса, бюджет, площадь, покупка/аренда</td>
+                <td>Кампус/ориентир, диапазон цен, площадь, покупка/аренда</td>
+              </tr>
+              <tr>
+                <td><strong>Ключевые метрики</strong></td>
+                <td>Пешеходный трафик, зазор конкурентов, ставка аренды</td>
+                <td>Близость к кампусу, безопасность, районный досуг</td>
+              </tr>
+              <tr>
+                <td><strong>Финансовый блок</strong></td>
+                <td>Расчет чистой прибыли (〒) и окупаемости (ROI %)</td>
+                <td>Оценка соответствия бюджетному диапазону (〒)</td>
+              </tr>
+              <tr>
+                <td><strong>Дополнительные вкладки</strong></td>
+                <td>AI-отчет Claude + Кадровая база HeadHunter.kz</td>
+                <td>Прямой маршрут в 2GIS + Свежие объявления Krisha.kz</td>
+              </tr>
+            </tbody>
+          </table>
+        `
+      },
+
+      // ── SLIDE 10: ДЕМО-РЕЖИМ VS АВТОРИЗОВАННАЯ ВЕРСИЯ ──
+      {
+        tag: "МОДЕЛЬ МОНЕТИЗАЦИИ И ДОСТУПА",
+        title: "Различия: Демо-режим vs Полная Версия",
+        sub: "Встроенный защитный шлюз для предотвращения парсинга и мотивации регистрации.",
+        html: `
+          <div class="grid-2">
+            <div class="feature-card" style="border-top:3px solid var(--muted);">
+              <h3>🔒 Гостевой Демо-Режим (Demo Mode)</h3>
+              <ul>
+                <li><strong>Ограничение выдачи:</strong> Показывает только 1 тестовую локацию.</li>
+                <li><strong>Закрытые метрики:</strong> Значения детальных графиков скрыты за плашкой <code>🔒 Locked</code>.</li>
+                <li><strong>Лимиты частоты:</strong> Ограничение количества поисков по IP-адресу и cookie-идентификатору в SQLite.</li>
+                <li><strong>Без сохранения:</strong> Избранное недоступно без аккаунта.</li>
+              </ul>
+            </div>
+            
+            <div class="feature-card" style="border-top:3px solid var(--accent);">
+              <h3>✨ Полная Авторизованная Версия</h3>
+              <ul>
+                <li><strong>Полная выдача:</strong> До 5 лучших локаций с ранжированием и сортировкой.</li>
+                <li><strong>Открытая аналитика:</strong> Разблокированы все диаграммы, оценки трафика, финансовые метрики и ROI.</li>
+                <li><strong>AI-Консалтинг:</strong> Доступ к полному экспертному отчету модели Claude.</li>
+                <li><strong>Персональная база данных:</strong> Индивидуальный список избранного с синхронизацией в базе.</li>
+              </ul>
+            </div>
+          </div>
+          <div class="screenshot-placeholder" style="margin-top:1.5rem; min-height:140px;">
+            <div class="title">[ Место для Скриншота: Демо-баннер и заблокированная карточка ]</div>
+            <div class="desc">Демонстрация UI-баннера ограничения и элементов с меткой Locked в гостевой сессии</div>
+          </div>
+        `
+      },
+
+      // ── SLIDE 11: БАЗА ДАННЫХ И ИЗБРАННОЕ ──
+      {
+        tag: "ПЕРСИСТЕНТНОСТЬ ДАННЫХ",
+        title: "База Данных SQLite и Личное Избранное",
+        sub: "Индивидуальное изолированное хранение данных каждого зарегистрированного пользователя.",
+        html: `
+          <div class="grid-2">
+            <div class="feature-card">
+              <h3>🗄️ Схема Базы Данных (app/db.py)</h3>
+              <ul>
+                <li><strong>Таблица <code>users</code>:</strong> Хранение учетных записей (id, email, password_hash, name, phone, consent).</li>
+                <li><strong>Таблица <code>favorites</code>:</strong> Индивидуальные закладки пользователей (user_id, location_id, location_data, created_at) с ограничением <code>UNIQUE(user_id, location_id)</code>.</li>
+                <li><strong>Таблица <code>search_logs</code>:</strong> Аудит и учет поисковых запросов для контроля демо-лимитов.</li>
+                <li><strong>REST API:</strong> Полноценные endpoints <code>GET /favorites</code>, <code>POST /favorites</code>, <code>DELETE /favorites/{id}</code>.</li>
+              </ul>
+            </div>
+            
+            <div class="screenshot-placeholder">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+              </svg>
+              <div class="title">[ Место для Скриншота: Модальное окно Избранного ]</div>
+              <div class="desc">Окно сохраненных объектов пользователя с актуальными баллами, ссылками на 2GIS и Krisha.kz</div>
+            </div>
+          </div>
+        `
+      },
+
+      // ── SLIDE 12: МУЛЬТИЯЗЫЧНОСТЬ И UI/UX ──
+      {
+        tag: "ПОЛЬЗОВАТЕЛЬСКИЙ ОПЫТ (UI/UX)",
+        title: "Полная Локализация (KZ/RU/EN) и Интерфейс",
+        sub: "Бесшовный перевод 100% элементов интерфейса на лету без перезагрузки страницы.",
+        html: `
+          <div class="grid-3">
+            <div class="feature-card">
+              <h3>🇰🇿 Казахский язык (KZ)</h3>
+              <p>Полноценный перевод интерфейса, названий районов (<em>Бостандық, Алмалы, Медеу</em>), типов зон (<em>Орталық, Тұрғын үй</em>), статусов и карточек.</p>
+            </div>
+            <div class="feature-card">
+              <h3>🇷🇺 Русский язык (RU)</h3>
+              <p>Нативная русификация терминов, пояснений, сообщений об ошибках, этапов загрузки и полей финансового прогноза.</p>
+            </div>
+            <div class="feature-card">
+              <h3>🇬🇧 Английский язык (EN)</h3>
+              <p>Международная локализация для иностранных студентов, инвесторов и экспатов.</p>
+            </div>
+          </div>
+          <div class="screenshot-placeholder" style="margin-top:1.5rem; min-height:160px;">
+            <div class="title">[ Место для Скриншота: Переключатель языков и темная/светлая тема ]</div>
+            <div class="desc">Сравнение интерфейса на казахском и русском языках с переключением темы Dark/Light</div>
+          </div>
+        `
+      },
+
+      // ── SLIDE 13: ДЕМОНСТРАЦИЯ ИНТЕРФЕЙСА (ГАЛЕРЕЯ) ──
+      {
+        tag: "ВИЗУАЛЬНАЯ ДЕМОНСТРАЦИЯ",
+        title: "Интерфейс Системы в Действии",
+        sub: "Обзор ключевых пользовательских экранов веб-платформы AI Location Scout.",
+        html: `
+          <div class="grid-2">
+            <div class="screenshot-placeholder" style="min-height:180px;">
+              <div class="title">[ Скриншот 1: Стартовый Дашборд ]</div>
+              <div class="desc">Экран выбора сценария: студенческий поиск жилья или бизнес-разведка с тумблерами «Аренда / Покупка»</div>
+            </div>
+            <div class="screenshot-placeholder" style="min-height:180px;">
+              <div class="title">[ Скриншот 2: Форма Параметров ]</div>
+              <div class="desc">Интерактивные ползунки бюджета, выбор площади и автоподсказки кампусов вузов</div>
+            </div>
+            <div class="screenshot-placeholder" style="min-height:180px;">
+              <div class="title">[ Скриншот 3: Карточки с Диаграммами ]</div>
+              <div class="desc">Радиальные кольцевые скоринг-индикаторы, бары факторов и ссылки на карты</div>
+            </div>
+            <div class="screenshot-placeholder" style="min-height:180px;">
+              <div class="title">[ Скриншот 4: Аналитический Отчет AI ]</div>
+              <div class="desc">Детальный отчет модели Claude с оценкой сильных и слабых сторон выбранного места</div>
+            </div>
+          </div>
+        `
+      },
+
+      // ── SLIDE 14: РЕЗУЛЬТАТЫ И ПЕРСПЕКТИВЫ ──
+      {
+        tag: "ИТОГИ И РАЗВИТИЕ",
+        title: "Итоги Разработки и Перспективы",
+        sub: "Практическая ценность проекта и дорожная карта дальнейшего развития.",
+        html: `
+          <div class="grid-2">
+            <div class="feature-card" style="border-left: 3px solid var(--accent);">
+              <h3>✅ Достигнутые Результаты</h3>
+              <ul>
+                <li><strong>Работающий MVP:</strong> Полностью функционирующее веб-приложение, готовое к локальному и облачному развертыванию (Render).</li>
+                <li><strong>Высокая скорость:</strong> Полный цикл анализа, геокодирования и скоринга выполняется менее чем за <strong>2 секунды</strong>.</li>
+                <li><strong>Надежность кода:</strong> 100% прохождение тест-сьюта (26 автоматизированных тестов для скоринга, базы данных и мультиязычности).</li>
+              </ul>
+            </div>
+            
+            <div class="feature-card" style="border-left: 3px solid var(--brand);">
+              <h3>🚀 Планы Дальнейшего Развития</h3>
+              <ul>
+                <li><strong>Мобильное приложение:</strong> Создание кроссплатформенного клиента на Flutter с геолокацией на месте.</li>
+                <li><strong>Big Data операторов связи:</strong> Интеграция обезличенных данных сотовых вышек (Beeline, Kcell) для реальной плотности потоков людей.</li>
+                <li><strong>Интеграция с гос. кадастром:</strong> Проверка целевого назначения земельных участков и планов сноса/реновации.</li>
+              </ul>
+            </div>
+          </div>
+        `
+      },
+
+      // ── SLIDE 15: ЗАКЛЮЧЕНИЕ И QR-КОД ──
+      {
+        tag: "СПАСИБО ЗА ВНИМАНИЕ",
+        title: "AI Location Scout",
+        sub: "Готовы ответить на ваши вопросы и продемонстрировать систему вживую.",
+        html: `
+          <div class="qr-container">
+            <div style="flex:1;">
+              <h3 style="font-family:'Space Grotesk'; font-size:1.6rem; color:#fff; margin-bottom:1rem;">Платформа доступна для тестирования</h3>
+              <p style="color:var(--muted); font-size:1.05rem; line-height:1.7; margin-bottom:1.5rem;">
+                Проект разработан в рамках исследовательской работы в <strong>Торайгыров университете</strong>.
+              </p>
+              
+              <div style="background:rgba(108,99,255,0.12); padding:1.2rem; border-radius:12px; border:1px solid var(--card-border); margin-bottom:1.5rem;">
+                <div style="font-size:0.82rem; color:var(--muted); text-transform:uppercase; letter-spacing:0.05em;">GitHub Репозиторий проекта</div>
+                <div style="font-family:'Fira Code'; font-size:0.95rem; color:var(--accent); font-weight:600; margin-top:0.3rem;">
+                  github.com/ylriad/ai-location-scout
+                </div>
+              </div>
+              
+              <div style="display:flex; gap:2rem;">
+                <div>
+                  <div style="font-size:0.8rem; color:var(--muted);">Авторы проекта:</div>
+                  <div style="font-weight:700; color:#fff;">Тутенова Алия, Ефименко Ксения</div>
+                </div>
+                <div>
+                  <div style="font-size:0.8rem; color:var(--muted);">Научный руководитель / Вуз:</div>
+                  <div style="font-weight:700; color:#fff;">Торайгыров университет, 2026</div>
+                </div>
+              </div>
+            </div>
+            
+            <div class="qr-card">
+              <div class="qr-box">
+                <svg width="60" height="60" viewBox="0 0 24 24" fill="none" stroke="#4a42cc" stroke-width="2" style="margin-bottom:0.5rem;">
+                  <rect x="3" y="3" width="7" height="7"></rect>
+                  <rect x="14" y="3" width="7" height="7"></rect>
+                  <rect x="14" y="14" width="7" height="7"></rect>
+                  <rect x="3" y="14" width="7" height="7"></rect>
+                </svg>
+                [ МЕСТО ДЛЯ ВАШЕГО QR-КОДА ]
+                <br>
+                <span style="font-size:0.7rem; color:#64748b; margin-top:4px;">Вставьте изображение QR сюда</span>
+              </div>
+              <span>Отсканируйте для перехода к сервису</span>
+            </div>
+          </div>
+        `
+      }
+    ];
+
+    let currentSlide = 0;
+
+    function renderSlide() {
+      const s = slides[currentSlide];
+      const stage = document.getElementById('slideStage');
+      
+      stage.style.animation = 'none';
+      stage.offsetHeight; // trigger reflow
+      stage.style.animation = null;
+
+      stage.innerHTML = `
+        <div class="slide-tag">${s.tag}</div>
+        <h1 class="slide-title">${s.title}</h1>
+        <p class="slide-sub">${s.sub}</p>
+        ${s.html}
+      `;
+
+      document.getElementById('slideNum').textContent = `${currentSlide + 1} / ${slides.length}`;
+      document.getElementById('progressBar').style.width = `${((currentSlide + 1) / slides.length) * 100}%`;
+    }
+
+    function nextSlide() {
+      if (currentSlide < slides.length - 1) {
+        currentSlide++;
+        renderSlide();
+      }
+    }
+
+    function prevSlide() {
+      if (currentSlide > 0) {
+        currentSlide--;
+        renderSlide();
+      }
+    }
+
+    function toggleFullscreen() {
+      if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen().catch(() => {});
+      } else {
+        document.exitFullscreen().catch(() => {});
+      }
+    }
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'PageDown') {
+        e.preventDefault();
+        nextSlide();
+      } else if (e.key === 'ArrowLeft' || e.key === 'PageUp') {
+        e.preventDefault();
+        prevSlide();
+      } else if (e.key.toLowerCase() === 'f') {
+        toggleFullscreen();
+      } else if (e.key === 'Home') {
+        currentSlide = 0;
+        renderSlide();
+      } else if (e.key === 'End') {
+        currentSlide = slides.length - 1;
+        renderSlide();
+      }
+    });
+
+    renderSlide();
+  </script>
+</body>
+</html>
