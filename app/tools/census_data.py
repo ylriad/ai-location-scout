@@ -50,7 +50,7 @@ async def get_demographics(lat: float, lng: float) -> dict:
         result["median_income_usd"] = 1100000
         result["population"] = 350000
         result["demographics_fit_raw"] = 70.0
-    elif closest_district in ["Alatau", "Zhetysу", "Turksib", "Nauryzbay"]:
+    elif closest_district in ["Alatau", "Zhetysu", "Turksib", "Nauryzbay"]:
         result["median_income_usd"] = 800000
         result["population"] = 280000
         result["demographics_fit_raw"] = 40.0

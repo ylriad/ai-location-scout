@@ -6,15 +6,9 @@ from typing import Dict, Any, List, Tuple
 
 logger = logging.getLogger(__name__)
 
-# User provided key for 2GIS
-DEFAULT_2GIS_KEY = "bc2de4a4-1105-4e5c-9120-550fa7387015"
-
 def get_api_key() -> str:
-    # Use provided TWOGIS_API_KEY, or fallback to the hardcoded default requested
-    key = os.getenv("TWOGIS_API_KEY", "").strip()
-    if not key:
-        key = DEFAULT_2GIS_KEY
-    return key
+    """2GIS API key from the TWOGIS_API_KEY environment variable (never hardcode it)."""
+    return os.getenv("TWOGIS_API_KEY", "").strip()
 
 async def geocode_city(city: str) -> Tuple[float, float] | None:
     """Geocodes a city/address string to coordinates using 2GIS."""
@@ -79,7 +73,7 @@ async def get_competitors(lat: float, lng: float, keyword: str, radius: int = 10
                         "name": p.get("name", "Unknown"),
                         "lat": p.get("point", {}).get("lat"),
                         "lng": p.get("point", {}).get("lon"),
-                        "rating": getattr(p.get("reviews", {}), "general_review_count", 0)
+                        "rating": (p.get("reviews") or {}).get("general_review_count", 0)
                     })
                 
                 # Adjust score roughly

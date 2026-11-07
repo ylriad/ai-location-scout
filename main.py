@@ -21,4 +21,7 @@ if __name__ == "__main__":
         port      = port,
         reload    = is_dev,
         log_level = "info",
+        # Behind Render / nginx the real client IP is in X-Forwarded-For.
+        proxy_headers        = True,
+        forwarded_allow_ips  = "*",
     )

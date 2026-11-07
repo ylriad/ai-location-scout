@@ -10,7 +10,7 @@ APIFY_TOKEN = os.getenv("APIFY_API_TOKEN", "")
 
 CATEGORY_KEYWORD_MAP = {
     "restaurant": ["шеф-повар", "повар", "официант", "управляющий рестораном"],
-    "cafe/coffee shop": ["бариста", "управляющий кофейней", "кассир кофе"],
+    "coffee shop": ["бариста", "управляющий кофейней", "кассир кофе"],
     "bar/nightclub": ["бармен", "диджей", "охранник клуб", "управляющий баром"],
     "hotel/lodging": ["администратор гостиницы", "горничная", "портье"],
     "retail store": ["продавец-консультант", "управляющий магазином"],
@@ -32,8 +32,9 @@ CATEGORY_KEYWORD_MAP = {
 }
 
 async def get_workers(business_type: str, city: str) -> dict:
-    bt_lower = business_type.lower().strip()
-    keywords = CATEGORY_KEYWORD_MAP.get(bt_lower)
+    from app.i18n.terms import get_business_type_key
+    bt_key = get_business_type_key(business_type.strip())
+    keywords = CATEGORY_KEYWORD_MAP.get(bt_key) or CATEGORY_KEYWORD_MAP.get(business_type.lower().strip())
     
     if not keywords:
         keywords = ["менеджер", "администратор"]
@@ -54,7 +55,7 @@ async def get_workers(business_type: str, city: str) -> dict:
         # Run the Web Scraper Actor (apify/web-scraper)
         run_input = {
             "startUrls": [{"url": search_url}],
-            "pageFunction": """
+            "pageFunction": r"""
                 async function pageFunction(context) {
                     const elements = Array.from(document.querySelectorAll('[data-qa="resume-serp__resume"]')).slice(0, 5);
                     const resumes = elements.map(el => {

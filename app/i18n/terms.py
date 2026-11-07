@@ -424,7 +424,7 @@ def translate_location_name(name: str, lang: str = "en") -> str:
             "ru": "Центр Ауэзовского района",
             "kk": "Әуезов ауданының орталығы"
         },
-        "Zhetysу Bazaar Junction": {
+        "Zhetysu Bazaar Junction": {
             "ru": "Район базара Жетысу",
             "kk": "Жетісу базары торабы"
         },

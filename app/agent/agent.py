@@ -32,6 +32,11 @@ logger = logging.getLogger(__name__)
 DEFAULT_TOP_N = 3
 
 
+def _in_almaty(lat: float, lng: float) -> bool:
+    """Sanity check that a geocoded point is inside Almaty's bounding box."""
+    return 43.10 <= lat <= 43.45 and 76.70 <= lng <= 77.15
+
+
 # ---------------------------------------------------------------------------
 # Core helper: evaluate a single candidate
 # ---------------------------------------------------------------------------
@@ -47,8 +52,11 @@ async def _evaluate_candidate(
     lng = candidate.get("lng", 0)
     
     # All three core inputs dynamically gathered via APIs!
+    # 2GIS search works much better with Russian queries ("кофейня", not "coffee shop").
+    from app.i18n.terms import get_search_ru
+    search_q = get_search_ru(business_type, "business_type").split(",")[0].strip() or business_type
     traffic_task  = get_foot_traffic_proxy(lat, lng)
-    comp_task     = get_competitors(lat, lng, business_type)
+    comp_task     = get_competitors(lat, lng, search_q)
     
     exact_rent = candidate.get("rent_kzt", 0)
     
@@ -90,6 +98,8 @@ async def _evaluate_candidate(
 
     return {
         **candidate,
+        "budget":            budget,
+        "business_type":     business_type,
         "traffic_result":    traffic_result,
         "competitor_result": competitor_result,
         "rent_result":       rent_result,
@@ -126,15 +136,25 @@ class LocationScoutAgent:
             from app.agent.candidates import ALMATY_CANDIDATES
             return ALMATY_CANDIDATES[:limit]
 
+        # Geocode every listing address via 2GIS so each candidate gets its own
+        # real coordinates (falls back to the district centre if that fails).
+        geo_results = await asyncio.gather(
+            *[geocode_city(f"{city}, {l.get('address', '')}") for l in listings],
+            return_exceptions=True,
+        )
+
         candidates = []
         for i, l in enumerate(listings):
             district = _match_district(l["address"]) or "Almaly"
-            lat, lng = ALMATY_DISTRICTS.get(district, (CBD_LAT, CBD_LNG))
-            
-            # small synthetic jitter so coordinates don't completely overlap for same district
-            lat += (i * 0.001)
-            lng += (i * 0.001)
-            
+            geo = geo_results[i]
+            if isinstance(geo, tuple) and _in_almaty(*geo):
+                lat, lng = geo
+            else:
+                lat, lng = ALMATY_DISTRICTS.get(district, (CBD_LAT, CBD_LNG))
+                # small jitter so coordinates don't completely overlap for same district
+                lat += (i * 0.002)
+                lng += (i * 0.002)
+
             candidates.append({
                 "id": str(i),
                 "name": l.get("title", f"Candidate {i}"),
@@ -276,15 +296,17 @@ def _to_location_result(r: dict, is_demo: bool = False, lang: str = "en") -> Loc
             score_explanation     = "Sign in to unlock full detailed ratings.",
         )
 
-    # ROI quick-calc  (mirrors the template formula)
-    traffic_score  = tr.get("score", 50)
-    daily_covers   = traffic_score * 0.8
-    avg_spend_kzt  = 2500
-    monthly_rev    = daily_covers * 30 * avg_spend_kzt
-    rent           = rr.get("avg_rent_kzt", 0)
-    monthly_cost   = rent + (0.40 * monthly_rev)
-    monthly_profit = monthly_rev - monthly_cost
-    annual_roi     = (monthly_profit * 12 / r.get("budget", monthly_rev)) if monthly_rev else 0
+    # ROI quick-calc – same function is used by the report, so numbers match.
+    from app.tools.scoring import calc_roi
+    roi = calc_roi(
+        traffic_score = tr.get("score", 50),
+        rent_kzt      = rr.get("avg_rent_kzt", 0) or 0,
+        budget_kzt    = r.get("budget", 0) or 0,
+        business_type = r.get("business_type", ""),
+    )
+    monthly_rev    = roi["monthly_revenue"]
+    monthly_profit = roi["monthly_profit"]
+    annual_roi     = roi["annual_roi_pct"]
 
     return LocationResult(
         id                    = r.get("id", ""),

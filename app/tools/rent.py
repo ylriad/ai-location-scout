@@ -31,18 +31,38 @@ ALMATY_DISTRICTS: dict[str, tuple[float, float]] = {
     "Alatau":        (43.3200, 76.8500),
     "Almaly":        (43.2575, 76.9450),
     "Auezov":        (43.2200, 76.8700),
-    "Zhetysу":       (43.2800, 76.9700),
+    "Zhetysu":       (43.2800, 76.9700),
     "Turksib":       (43.3100, 77.0200),
     "Nauryzbay":     (43.2000, 76.8000),
 }
 
 CBD_LAT, CBD_LNG = 43.2551, 76.9126
 
+def _district_aliases() -> list[tuple[str, str]]:
+    """(alias, canonical English district) pairs, longest alias first.
+
+    Krisha addresses are in Russian ("Бостандыкский р-н, ..."), so we match
+    against the RU/KK/EN aliases from app.i18n.terms.DISTRICTS.
+    """
+    from app.i18n.terms import DISTRICTS
+    pairs: list[tuple[str, str]] = []
+    for data in DISTRICTS.values():
+        canonical = data.get("en", "")
+        if canonical not in ALMATY_DISTRICTS:
+            continue
+        names = {canonical, data.get("ru", ""), data.get("kk", ""), *data.get("aliases", [])}
+        pairs += [(n.lower(), canonical) for n in names if n]
+    return sorted(pairs, key=lambda p: len(p[0]), reverse=True)
+
+
+_DISTRICT_ALIASES = _district_aliases()
+
+
 def _match_district(address: str) -> str | None:
-    """Fuzzy-match one of the known district names inside an address string."""
-    addr_lower = address.lower()
-    for district in ALMATY_DISTRICTS:
-        if district.lower() in addr_lower:
+    """Find a known Almaty district inside an address string (EN/RU/KK)."""
+    addr_lower = (address or "").lower()
+    for alias, district in _DISTRICT_ALIASES:
+        if alias in addr_lower:
             return district
     return None
 

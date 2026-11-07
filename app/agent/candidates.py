@@ -76,9 +76,9 @@ ALMATY_CANDIDATES = [
     },
     {
         "id":       "zhetysu_bazaar",
-        "name":     "Zhetysу Bazaar Junction",
-        "district": "Zhetysу",
-        "address":  "Seifullin Ave 120, Zhetysу, Almaty",
+        "name":     "Zhetysu Bazaar Junction",
+        "district": "Zhetysu",
+        "address":  "Seifullin Ave 120, Zhetysu, Almaty",
         "lat":      43.2800,
         "lng":      76.9700,
         "zone":     "residential",

@@ -43,6 +43,47 @@ def _label(score: float, lang: str = "en") -> str:
     return SCORE_LABELS[-1][1][lang]
 
 
+# Rough unit economics per business type: (daily visitors per traffic point, avg check KZT)
+_UNIT_ECONOMICS = {
+    "coffee shop":        (1.00, 2_000),
+    "restaurant":         (0.60, 6_000),
+    "fitness center/gym": (0.50, 3_000),
+    "salon/spa":          (0.15, 8_000),
+    "retail store":       (0.40, 7_000),
+}
+_DEFAULT_ECONOMICS = (0.60, 4_000)
+_OPEX_SHARE = 0.40  # COGS, staff, utilities as share of revenue
+
+
+def calc_roi(traffic_score: float, rent_kzt: float, budget_kzt: float, business_type: str = "") -> dict:
+    """
+    Single ROI formula shared by the result cards and the report.
+
+      daily visitors  = traffic_score × visitors_factor(type)
+      monthly revenue = daily visitors × 30 × avg_check(type)
+      monthly costs   = rent + 40% of revenue
+      annual ROI %    = annual profit / (12 × monthly budget) × 100
+    """
+    from app.i18n.terms import get_business_type_key
+    factor, avg_check = _UNIT_ECONOMICS.get(get_business_type_key(business_type or ""), _DEFAULT_ECONOMICS)
+
+    daily_visitors  = float(traffic_score or 0) * factor
+    monthly_revenue = daily_visitors * 30 * avg_check
+    monthly_cost    = float(rent_kzt or 0) + _OPEX_SHARE * monthly_revenue
+    monthly_profit  = monthly_revenue - monthly_cost
+    annual_budget   = float(budget_kzt or 0) * 12
+    annual_roi_pct  = (monthly_profit * 12 / annual_budget * 100) if annual_budget > 0 else 0.0
+
+    return {
+        "daily_visitors":  round(daily_visitors),
+        "avg_check":       avg_check,
+        "monthly_revenue": round(monthly_revenue, 2),
+        "monthly_cost":    round(monthly_cost, 2),
+        "monthly_profit":  round(monthly_profit, 2),
+        "annual_roi_pct":  round(annual_roi_pct, 1),
+    }
+
+
 def _estimate_demographics_fit(
     area_size: int,
     district: str,

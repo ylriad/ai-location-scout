@@ -1491,7 +1491,8 @@
       const idx = favorites.findIndex(f => f.id === id);
       if (idx > -1) {
         try {
-          await fetch(`/favorites/${encodeURIComponent(id)}`, { method: 'DELETE' });
+          const r = await fetch(`/favorites/${encodeURIComponent(id)}`, { method: 'DELETE' });
+          if (!r.ok) throw new Error('Delete favorite failed: ' + r.status);
         } catch (e) {
           console.error(e);
         }
@@ -1500,15 +1501,16 @@
         const loc = currentLocationsMap[id];
         if (loc) {
           try {
-            await fetch('/favorites', {
+            const r = await fetch('/favorites', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ location_id: id, location_data: loc })
             });
+            if (!r.ok) throw new Error('Save favorite failed: ' + r.status);
+            favorites.push(loc);
           } catch (e) {
             console.error(e);
           }
-          favorites.push(loc);
         }
       }
       updateFavCount();

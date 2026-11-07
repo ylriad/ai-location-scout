@@ -187,11 +187,13 @@ async def save_favorite(request: Request):
     if not user:
         raise HTTPException(status_code=401, detail="Not authenticated.")
     body = await request.json()
-    location_id = body.get("id")
+    # Frontend sends {location_id, location_data}; also accept a bare location object.
+    location_data = body.get("location_data") or body
+    location_id = body.get("location_id") or location_data.get("id")
     if not location_id:
         raise HTTPException(status_code=400, detail="Missing location id.")
     from app.db import add_user_favorite
-    add_user_favorite(user["id"], str(location_id), body)
+    add_user_favorite(user["id"], str(location_id), location_data)
     return {"status": "ok", "id": location_id}
 
 
@@ -233,12 +235,12 @@ async def scout(request: ScoutRequest, req: Request, response: Response):
         search_count = get_search_count(ip, visitor_id)
         if search_count >= 1:
             raise HTTPException(status_code=403, detail="Demo search limit reached. Please register or sign in.")
-            
-        register_search(ip, visitor_id)
         
     try:
         agent = LocationScoutAgent(top_n=request.top_n)
         result = await agent.run(request, is_demo=is_demo)
+        if is_demo:
+            register_search(ip, visitor_id)
         return result
     except Exception as exc:
         logger.exception("Scout agent failed: %s", exc)
@@ -267,13 +269,13 @@ async def scout_personal(request: PersonalScoutRequest, req: Request, response: 
         search_count = get_search_count(ip, visitor_id)
         if search_count >= 1:
             raise HTTPException(status_code=403, detail="Demo search limit reached. Please register or sign in.")
-            
-        register_search(ip, visitor_id)
         
     try:
         from app.agent.personal_agent import PersonalScoutAgent
         agent = PersonalScoutAgent(top_n=request.top_n)
         result = await agent.run(request, is_demo=is_demo)
+        if is_demo:
+            register_search(ip, visitor_id)
         return result
     except Exception as exc:
         logger.exception("Personal scout agent failed: %s", exc)

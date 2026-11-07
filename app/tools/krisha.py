@@ -64,7 +64,7 @@ async def scrape_krisha_listings(city: str, business_type: str, limit: int = 5, 
                     logger.error(f"Fallback URL {fallback_url} also hit {resp.status_code}.")
                     return []
                 
-            soup = BeautifulSoup(resp.text, 'lxml' if 'lxml' in globals() else 'html.parser')
+            soup = BeautifulSoup(resp.text, 'html.parser')
             cards = soup.select('.a-card')
             
             import re
@@ -170,7 +170,7 @@ async def scrape_krisha_apartments(
                 logger.error(f"Apartment URL {url} hit {resp.status_code}")
                 return []
                 
-            soup = BeautifulSoup(resp.text, 'lxml' if 'lxml' in globals() else 'html.parser')
+            soup = BeautifulSoup(resp.text, 'html.parser')
             cards = soup.select('.a-card')
             
             import re

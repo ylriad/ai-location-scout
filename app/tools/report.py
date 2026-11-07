@@ -11,10 +11,12 @@ import os
 
 import anthropic
 
+from app.tools.scoring import calc_roi
+
 logger = logging.getLogger(__name__)
 
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
-CLAUDE_MODEL      = os.getenv("CLAUDE_MODEL", "claude-opus-4-5")
+CLAUDE_MODEL      = os.getenv("CLAUDE_MODEL", "claude-sonnet-5-5")
 
 
 # ---------------------------------------------------------------------------
@@ -35,6 +37,7 @@ def _build_prompt(
         rent_info  = loc.get("rent_result",  {})
         traffic    = loc.get("traffic_result", {})
         comp       = loc.get("competitor_result", {})
+        roi        = calc_roi(traffic.get("score", 50), rent_info.get("avg_rent_kzt", 0) or 0, budget, business_type)
 
         block = f"""
 ### Location #{idx}: {loc.get('name', 'Unnamed')}
@@ -49,6 +52,7 @@ def _build_prompt(
 - **Est. Monthly Rent**: {rent_info.get('avg_rent_kzt', 'N/A')} KZT (range {rent_info.get('min_rent_kzt', 'N/A')}–{rent_info.get('max_rent_kzt', 'N/A')} KZT)
 - **Nearby Competitors**: {comp.get('count', 'N/A')} within {comp.get('radius_m', 1000)} m
 - **Foot Traffic score**: {traffic.get('score', 'N/A')}/100 ({traffic.get('source', '')})
+- **Pre-computed ROI**: revenue {roi['monthly_revenue']:,.0f} KZT/mo, profit {roi['monthly_profit']:,.0f} KZT/mo, annual ROI {roi['annual_roi_pct']}%
 """
         location_blocks.append(block)
 
@@ -77,15 +81,12 @@ Below are the top 3 candidate locations scored by our AI location-scout system:
 Please write a concise yet comprehensive business report (600–900 words) covering:
 
 1. **Executive Summary** – which location is the best pick and why.
-2. **Foot Traffic & Competitors (Google Maps)** – analyse how the proxy reviews and competitor distance affects viability.
-3. **Demographics & Rent (US Census)** – weigh the population & income density vs the proxy commercial rent.
-4. **ROI Estimates** – for each location provide a rough 12-month ROI projection:
-   - Assume average daily covers = traffic_score × 0.8 customers, average spend 2500 KZT.
-   - Monthly revenue = daily_covers × 30 × avg_spend_kzt
-   - Monthly costs = rent + 40% of revenue (COGS, staff, utilities)
-   - Monthly profit = revenue – costs
-   - Annual ROI % = (annual_profit / budget) × 100
-4. **Final Recommendation** – decisive one-paragraph recommendation with the top location.
+2. **Foot Traffic & Competitors (2GIS)** – analyse how business density around each point and the number of nearby competitors affect viability.
+3. **District Profile & Rent (Krisha.kz)** – weigh the district's income profile (modelled estimate) against the actual listed rent.
+4. **ROI Estimates** – use exactly the pre-computed ROI figures given for each location above (do not recalculate them); briefly explain what drives them.
+5. **Final Recommendation** – decisive one-paragraph recommendation with the top location.
+
+Data sources: 2GIS Catalog API (business density, competitors), Krisha.kz (listings and rent), modelled district demographics. Do not mention Google Maps or the US Census.
 
 Write in a professional, confident tone suitable for an investor deck.
 Use markdown headers and bullet points for clarity.
@@ -121,15 +122,12 @@ def _template_report(
         cr  = loc.get("competitor_result", {})
         bd  = sr.get("breakdown", {})
 
-        # Simple ROI calc
-        traffic_score = tr.get("score", 50)
-        daily_covers  = traffic_score * 0.8
-        avg_spend_kzt = 2500
-        monthly_rev   = daily_covers * 30 * avg_spend_kzt
-        rent          = rr.get("avg_rent_kzt", budget * 0.25)
-        monthly_cost  = rent + 0.40 * monthly_rev
-        monthly_profit = monthly_rev - monthly_cost
-        annual_roi     = ((monthly_profit * 12) / budget * 100) if budget else 0
+        # ROI – same formula as the result cards
+        roi = calc_roi(tr.get("score", 50), rr.get("avg_rent_kzt", 0) or 0, budget, business_type)
+        monthly_rev    = roi["monthly_revenue"]
+        monthly_cost   = roi["monthly_cost"]
+        monthly_profit = roi["monthly_profit"]
+        annual_roi     = roi["annual_roi_pct"]
 
         lines += [
             f"### #{idx} – {loc.get('name', 'Location')} (Score: {sr.get('final_score', 'N/A')}/100 – {sr.get('label', '')})",
@@ -186,11 +184,11 @@ async def generate_report(
         return {"report_md": report, "source": "template"}
 
     try:
-        client  = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
+        client  = anthropic.AsyncAnthropic(api_key=ANTHROPIC_API_KEY)
         prompt  = _build_prompt(top3_locations, business_type, city, budget, area_size, lang=lang)
-        message = client.messages.create(
+        message = await client.messages.create(
             model       = CLAUDE_MODEL,
-            max_tokens  = 2048,
+            max_tokens  = 4096,
             messages    = [{"role": "user", "content": prompt}],
         )
         report = message.content[0].text
