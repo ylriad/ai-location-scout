@@ -200,3 +200,4 @@ class KrishaRequest(BaseModel):
 class WorkersRequest(BaseModel):
     city:          str = "Almaty"
     business_type: str = "coffee shop"
+    lang:          str = "en"

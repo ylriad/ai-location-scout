@@ -2111,8 +2111,13 @@
     }
 
     // ── Markdown → HTML ────────────────────────────────────────────────────────
+    function escapeHtml(s) {
+      return String(s ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+    }
+
     function md2html(md) {
       if (!md) return '';
+      md = escapeHtml(md);  // external text (Claude, hh.ru) must not inject HTML
       const lines = md.split('\n');
       const out = [];
       let i = 0;
@@ -2361,10 +2366,10 @@
         
         kGrid.innerHTML = data.map(k => `
           <div class="krisha-item">
-            <div class="krisha-price">${k.price_kzt_str || t.krisha_price_req}</div>
-            <div class="krisha-title">${k.title}</div>
-            <div class="krisha-address">📍 ${translateAddress(k.address, currentLang)}</div>
-            <a class="krisha-link" href="${k.link}" target="_blank" rel="noopener">${t.krisha_view}</a>
+            <div class="krisha-price">${escapeHtml(k.price_kzt_str || t.krisha_price_req)}</div>
+            <div class="krisha-title">${escapeHtml(k.title)}</div>
+            <div class="krisha-address">📍 ${escapeHtml(translateAddress(k.address, currentLang))}</div>
+            <a class="krisha-link" href="${escapeHtml(k.link)}" target="_blank" rel="noopener">${t.krisha_view}</a>
           </div>
         `).join('');
       } catch (err) {
@@ -2384,7 +2389,7 @@
         const res = await fetch('/tools/workers', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ city, business_type: btype })
+          body: JSON.stringify({ city, business_type: btype, lang: currentLang })
         });
         if (!res.ok) throw new Error('Workers fetch failed');
         const data = await res.json();

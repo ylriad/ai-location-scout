@@ -105,7 +105,8 @@ async def scrape_krisha_listings(city: str, business_type: str, limit: int = 5, 
                     price_val = int(nums[0])
                     
                     # Convert per sq.m rent to approximate monthly total
-                    if "за кв. м" in price_text.lower():
+                    pt = price_text.lower()
+                    if "за кв" in pt or "за м²" in pt or "/м²" in pt or "за м2" in pt:
                         price_val = price_val * area_size
                 
                 listings.append({

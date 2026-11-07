@@ -1,0 +1,11 @@
+.git
+.env
+.venv
+venv
+__pycache__
+*.pyc
+*.db
+tests
+scout_res*.json
+debug.py
+test_error.py

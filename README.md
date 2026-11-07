@@ -30,6 +30,10 @@ py -3.13 main.py
 
 ---
 
+## 🖥️ Deploy to a VPS (Docker)
+
+See [DEPLOY_VPS.md](DEPLOY_VPS.md) — hourly-billed server in Almaty, 4 commands.
+
 ## 🚀 Deploy to Render
 
 This repository includes a `render.yaml` Blueprint file for one-click, zero-config deployment on [Render](https://render.com).

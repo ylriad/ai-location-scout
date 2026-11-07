@@ -46,6 +46,7 @@ async def _evaluate_candidate(
     business_type:   str,
     budget:          float,
     area_size:       int,
+    rent_or_buy:     str = "rent",
 ) -> dict:
     """Runs the three data-gathering tools concurrently for one location."""
     lat = candidate.get("lat", 0)
@@ -62,15 +63,25 @@ async def _evaluate_candidate(
     
     if exact_rent > 0:
         from app.tools.rent import _affordability_score
-        afford = _affordability_score(exact_rent, budget)
+        if (rent_or_buy or "rent").lower() == "buy":
+            # Purchase price → monthly equivalent over a 10-year payback horizon,
+            # so it is comparable with the monthly budget.
+            monthly_equiv = round(exact_rent / 120)
+            explanation = (f"Purchase price {exact_rent} KZT ≈ {monthly_equiv} KZT/mo "
+                           f"over 10 years.")
+        else:
+            monthly_equiv = exact_rent
+            explanation = f"Exact listed rent {exact_rent} KZT/mo."
+        afford = _affordability_score(monthly_equiv, budget)
         rent_result = {
-            "avg_rent_kzt": exact_rent,
-            "min_rent_kzt": exact_rent,
-            "max_rent_kzt": exact_rent,
+            "avg_rent_kzt": monthly_equiv,
+            "min_rent_kzt": monthly_equiv,
+            "max_rent_kzt": monthly_equiv,
+            "purchase_price_kzt": exact_rent if monthly_equiv != exact_rent else None,
             "district": candidate.get("district", "Unknown"),
             "source": "Krisha.kz",
             "rent_affordable": afford,
-            "explanation": f"Exact listed rent {exact_rent} KZT/mo. Affordability score: {afford}/100."
+            "explanation": f"{explanation} Affordability score: {afford}/100."
         }
         traffic_result, competitor_result = await asyncio.gather(traffic_task, comp_task)
     else:
@@ -185,7 +196,7 @@ class LocationScoutAgent:
 
         # ── Step 2: Evaluate all candidates concurrently ──────────────────
         tasks = [
-            _evaluate_candidate(c, request.business_type, request.budget, request.area_size)
+            _evaluate_candidate(c, request.business_type, request.budget, request.area_size, request.rent_or_buy)
             for c in candidates
         ]
         evaluated = await asyncio.gather(*tasks, return_exceptions=True)

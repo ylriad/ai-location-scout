@@ -353,7 +353,7 @@ async def tool_krisha(req: KrishaRequest):
 async def tool_workers(req: WorkersRequest):
     try:
         from app.tools.workers import get_workers
-        return await get_workers(req.business_type, req.city)
+        return await get_workers(req.business_type, req.city, req.lang)
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc))
 

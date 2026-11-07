@@ -9,7 +9,7 @@ from fastapi import Request, Response
 
 logger = logging.getLogger(__name__)
 
-DB_PATH = Path(__file__).parent.parent / "data" / "location_scout.db"
+DB_PATH = Path(os.getenv("DB_PATH") or Path(__file__).parent.parent / "data" / "location_scout.db")
 JWT_SECRET = os.getenv("JWT_SECRET", "super-secret-key-change-me-in-production-123456789")
 JWT_ALGORITHM = "HS256"
 COOKIE_NAME = "session_token"

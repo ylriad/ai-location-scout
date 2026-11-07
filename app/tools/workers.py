@@ -1,12 +1,21 @@
+import asyncio
 import logging
-import urllib.parse
-from apify_client import ApifyClientAsync
 import os
+import statistics
+import urllib.parse
+
+import httpx
 
 logger = logging.getLogger(__name__)
 
-# User provided specific Token:
-APIFY_TOKEN = os.getenv("APIFY_API_TOKEN", "")
+APIFY_TOKEN  = os.getenv("APIFY_API_TOKEN", "")
+HH_APP_TOKEN = os.getenv("HH_APP_TOKEN", "")   # optional hh.ru application token
+
+HH_API_URL   = "https://api.hh.ru/vacancies"
+HH_HEADERS   = {"User-Agent": "LocationScout/1.0", "HH-User-Agent": "LocationScout/1.0"}
+# hh.ru area ids: Almaty 160, Astana 159, whole Kazakhstan 40
+HH_AREAS     = {"almaty": 160, "astana": 159}
+APIFY_TIMEOUT_S = 60
 
 CATEGORY_KEYWORD_MAP = {
     "restaurant": ["шеф-повар", "повар", "официант", "управляющий рестораном"],
@@ -31,31 +40,7 @@ CATEGORY_KEYWORD_MAP = {
     "manufacturing": ["оператор станка", "инженер производство", "сборщик", "кладовщик"]
 }
 
-async def get_workers(business_type: str, city: str) -> dict:
-    from app.i18n.terms import get_business_type_key
-    bt_key = get_business_type_key(business_type.strip())
-    keywords = CATEGORY_KEYWORD_MAP.get(bt_key) or CATEGORY_KEYWORD_MAP.get(business_type.lower().strip())
-    
-    if not keywords:
-        keywords = ["менеджер", "администратор"]
-
-    top_keywords = keywords[:2]
-    primary_keyword = top_keywords[0]
-    
-    query = f"{primary_keyword} {city}"
-    safe_query = urllib.parse.quote_plus(query)
-    search_url = f"https://hh.kz/search/resume?text={safe_query}&logic=normal&pos=full_text&exp_period=all_time"
-    
-    candidates = []
-    
-    try:
-        # Initialise the Apify client
-        client = ApifyClientAsync(APIFY_TOKEN)
-        
-        # Run the Web Scraper Actor (apify/web-scraper)
-        run_input = {
-            "startUrls": [{"url": search_url}],
-            "pageFunction": r"""
+RESUME_PAGE_FUNCTION = r"""
                 async function pageFunction(context) {
                     const elements = Array.from(document.querySelectorAll('[data-qa="resume-serp__resume"]')).slice(0, 5);
                     const resumes = elements.map(el => {
@@ -87,48 +72,159 @@ async def get_workers(business_type: str, city: str) -> dict:
                     }
                     return resumes;
                 }
-            """,
-            "proxyConfiguration": {"useApifyProxy": True}
-        }
+            """
 
-        logger.info(f"Triggering Apify scraper for URL: {search_url}")
-        run = await client.actor("apify/web-scraper").call(run_input=run_input)
-        
-        # Retrieve results
-        dataset_items = (await client.dataset(run["defaultDatasetId"]).list_items()).items
-        
-        if dataset_items and len(dataset_items) > 0:
-            for item in dataset_items:
-                if type(item) is list:
-                    for c in item:
-                        if not c.get("error"):
-                            candidates.append(c)
-                elif not item.get("error"):
-                    candidates.append(item)
-                    
+TEXT = {
+    "en": {"market": "Labour market", "vacancies": "open vacancies", "median": "Median salary",
+           "range": "Range", "examples": "Who is hiring now", "candidates": "Candidates (public hh.kz resumes)",
+           "no_cands": "Live resume parsing is unavailable right now — use the links below.",
+           "no_market": "hh.ru vacancy data is unavailable right now.",
+           "search": "Search", "on_hh": "on HeadHunter", "note": "Salary data: official hh.ru API (vacancies with a stated salary)."},
+    "ru": {"market": "Рынок труда", "vacancies": "открытых вакансий", "median": "Медианная зарплата",
+           "range": "Диапазон", "examples": "Кто сейчас нанимает", "candidates": "Кандидаты (открытые резюме hh.kz)",
+           "no_cands": "Живой парсинг резюме сейчас недоступен — воспользуйтесь ссылками ниже.",
+           "no_market": "Данные о вакансиях hh.ru сейчас недоступны.",
+           "search": "Искать", "on_hh": "на HeadHunter", "note": "Зарплаты: официальный API hh.ru (вакансии с указанной зарплатой)."},
+    "kk": {"market": "Еңбек нарығы", "vacancies": "ашық вакансия", "median": "Медиандық жалақы",
+           "range": "Диапазон", "examples": "Қазір кім жалдап жатыр", "candidates": "Үміткерлер (hh.kz ашық түйіндемелері)",
+           "no_cands": "Түйіндемелерді талдау қазір қолжетімсіз — төмендегі сілтемелерді пайдаланыңыз.",
+           "no_market": "hh.ru вакансия деректері қазір қолжетімсіз.",
+           "search": "Іздеу", "on_hh": "HeadHunter-де", "note": "Жалақы: hh.ru ресми API (жалақысы көрсетілген вакансиялар)."},
+}
+
+
+def _fmt_kzt(v: float) -> str:
+    return f"{v:,.0f}".replace(",", " ") + " ₸"
+
+
+async def _hh_vacancy_market(keyword: str, city: str) -> dict | None:
+    """Salary stats + example vacancies from the public hh.ru API."""
+    from app.i18n.terms import get_city_key
+    area = HH_AREAS.get(get_city_key(city or "").lower(), 40)
+    headers = dict(HH_HEADERS)
+    if HH_APP_TOKEN:
+        headers["Authorization"] = f"Bearer {HH_APP_TOKEN}"
+    params = {"text": keyword, "area": area, "per_page": 50, "only_with_salary": "true"}
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            resp = await client.get(HH_API_URL, params=params, headers=headers)
+            if resp.status_code != 200:
+                logger.warning("hh.ru API %s: %s", resp.status_code, resp.text[:200])
+                return None
+            data = resp.json()
     except Exception as e:
-        logger.error(f"Failed to scrape HH using Apify: {e}")
-        
-    md = f"🔎 **Top {len(candidates) if candidates else 0} Local Candidates in {city.capitalize()} for {business_type}**\n\n"
-    
-    if candidates:
-        for idx, c in enumerate(candidates[:5], 1):
-            md += f"{idx}️⃣ **{c.get('name', 'Candidate')}** — *{c.get('title', 'Unknown')}*\n"
-            md += f"   📍 {city.capitalize()}\n"
-            md += f"   💼 {c.get('experience', 'Опыт не указан')}\n"
-            md += f"   💰 {c.get('salary', 'по договорённости')}\n"
-            link = c.get('link') or search_url
-            md += f"   🔗 [View Profile]({link})\n\n"
+        logger.warning("hh.ru API error: %s", e)
+        return None
+
+    salaries, examples = [], []
+    for v in data.get("items", []):
+        sal = v.get("salary") or {}
+        if sal.get("currency") != "KZT":
+            continue
+        lo, hi = sal.get("from"), sal.get("to")
+        if not lo and not hi:
+            continue
+        mid = ((lo or hi) + (hi or lo)) / 2
+        if sal.get("gross"):
+            mid *= 0.9  # rough net
+        salaries.append(mid)
+        if len(examples) < 5:
+            examples.append({
+                "name": v.get("name", ""),
+                "employer": (v.get("employer") or {}).get("name", ""),
+                "salary": mid,
+                "url": v.get("alternate_url", ""),
+            })
+    if not salaries:
+        return {"found": data.get("found", 0), "median": None, "examples": examples}
+    return {
+        "found":   data.get("found", len(salaries)),
+        "median":  statistics.median(salaries),
+        "p25":     statistics.quantiles(salaries, n=4)[0] if len(salaries) >= 4 else min(salaries),
+        "p75":     statistics.quantiles(salaries, n=4)[2] if len(salaries) >= 4 else max(salaries),
+        "examples": examples,
+    }
+
+
+async def _scrape_resumes_apify(search_url: str) -> list[dict]:
+    """Optional: public hh.kz resume cards via Apify web-scraper (slow, may be blocked)."""
+    if not APIFY_TOKEN:
+        return []
+    try:
+        from apify_client import ApifyClientAsync
+        client = ApifyClientAsync(APIFY_TOKEN)
+        run_input = {
+            "startUrls": [{"url": search_url}],
+            "pageFunction": RESUME_PAGE_FUNCTION,
+            "proxyConfiguration": {"useApifyProxy": True},
+        }
+        logger.info("Triggering Apify scraper for URL: %s", search_url)
+        run = await asyncio.wait_for(
+            client.actor("apify/web-scraper").call(run_input=run_input, timeout_secs=APIFY_TIMEOUT_S),
+            timeout=APIFY_TIMEOUT_S + 15,
+        )
+        if not run:
+            return []
+        items = (await client.dataset(run["defaultDatasetId"]).list_items()).items
+    except Exception as e:
+        logger.warning("Apify HH scraping failed: %r", e)
+        return []
+
+    candidates = []
+    for item in items or []:
+        for c in (item if isinstance(item, list) else [item]):
+            if isinstance(c, dict) and not c.get("error") and c.get("title"):
+                candidates.append(c)
+    return candidates[:5]
+
+
+async def get_workers(business_type: str, city: str, lang: str = "en") -> dict:
+    from app.i18n.terms import get_business_type_key, get_display_label
+    t = TEXT.get((lang or "en").lower(), TEXT["en"])
+
+    bt_key = get_business_type_key(business_type.strip())
+    keywords = CATEGORY_KEYWORD_MAP.get(bt_key) or ["менеджер", "администратор"]
+    top_keywords = keywords[:2]
+    primary_keyword = top_keywords[0]
+
+    from app.i18n.terms import get_search_ru
+    city_ru = get_search_ru(city, "city") or city
+
+    def resume_url(kw: str) -> str:
+        q = urllib.parse.quote_plus(f"{kw} {city_ru}")
+        return f"https://hh.kz/search/resume?text={q}&logic=normal&pos=full_text&exp_period=all_time"
+
+    market, candidates = await asyncio.gather(
+        _hh_vacancy_market(primary_keyword, city),
+        _scrape_resumes_apify(resume_url(primary_keyword)),
+    )
+
+    city_label = get_display_label(city, "city", lang)
+    md = f"### 💰 {t['market']}: «{primary_keyword}», {city_label}\n\n"
+    if market and market.get("median"):
+        md += f"- **{t['median']}**: {_fmt_kzt(market['median'])}\n"
+        md += f"- **{t['range']}** (25–75%): {_fmt_kzt(market['p25'])} – {_fmt_kzt(market['p75'])}\n"
+        md += f"- **{market['found']}** {t['vacancies']}\n\n"
+        if market["examples"]:
+            md += f"**{t['examples']}:**\n\n"
+            for v in market["examples"]:
+                md += f"- {v['name']} — {v['employer']}, ~{_fmt_kzt(v['salary'])} [hh.kz]({v['url']})\n"
+            md += "\n"
     else:
-        md += "⚠️ *Apify scraping failed or no visible candidates found. Anti-bot proxies might be rate-limited.*\n\n"
-        
+        md += f"*{t['no_market']}*\n\n"
+
+    md += f"### 🧑‍💼 {t['candidates']}\n\n"
+    if candidates:
+        for c in candidates:
+            md += (f"- **{c.get('name', 'Кандидат')}** — *{c.get('title', '')}* · "
+                   f"💼 {c.get('experience', 'Опыт не указан')} · 💰 {c.get('salary', 'по договорённости')} "
+                   f"[hh.kz]({c.get('link') or resume_url(primary_keyword)})\n")
+        md += "\n"
+    else:
+        md += f"*{t['no_cands']}*\n\n"
+
     md += "---\n"
-    md += "⚠️ *Data sourced from public hh.kz profiles. Please contact candidates through the official platform.*\n"
-    md += f"🔄 [Search '{primary_keyword}' More on HeadHunter]({search_url})\n"
-    
-    if len(top_keywords) > 1:
-        sec_query = urllib.parse.quote_plus(f"{top_keywords[1]} {city}")
-        sec_url = f"https://hh.kz/search/resume?text={sec_query}&logic=normal&pos=full_text&exp_period=all_time"
-        md += f"🔄 [Search '{top_keywords[1]}' More on HeadHunter]({sec_url})\n"
-        
-    return {"workers_md": md}
+    for kw in top_keywords:
+        md += f"🔎 [{t['search']} «{kw}» {t['on_hh']}]({resume_url(kw)})\n\n"
+    md += f"*{t['note']}*\n"
+    return {"workers_md": md, "market": market, "candidates": candidates}
