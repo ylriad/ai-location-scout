@@ -1,150 +1,130 @@
+"""
+2GIS Catalog API helpers (file name is historical – everything here is 2GIS).
+
+Every function distinguishes three outcomes:
+  * data found            → real numbers from 2GIS
+  * nothing found         → 2GIS answered meta.code 404 → a real zero
+  * no access / error     → value is None and source="unavailable";
+                             the agent later substitutes an AVERAGE
+                             (mean of the candidates that did get data,
+                             or a neutral city default).
+"""
 import logging
-import httpx
-import asyncio
 import os
-from typing import Dict, Any, List, Tuple
+from typing import Any, Dict, Tuple
+
+import httpx
 
 logger = logging.getLogger(__name__)
+
+TWOGIS_ITEMS_URL = "https://catalog.api.2gis.com/3.0/items"
+
 
 def get_api_key() -> str:
     """2GIS API key from the TWOGIS_API_KEY environment variable (never hardcode it)."""
     return os.getenv("TWOGIS_API_KEY", "").strip()
 
-async def geocode_city(city: str) -> Tuple[float, float] | None:
-    """Geocodes a city/address string to coordinates using 2GIS."""
+
+async def twogis_items(params: dict, timeout: float = 10.0) -> dict | None:
+    """
+    Calls 2GIS /3.0/items. Returns the `result` dict (with total/items),
+    an empty result for "nothing found" (meta.code 404), or None when the
+    key is missing, invalid, out of quota, or the request failed.
+    """
     key = get_api_key()
     if not key:
         return None
-        
-    url = "https://catalog.api.2gis.com/3.0/items"
     try:
-        async with httpx.AsyncClient(timeout=10.0) as client:
-            resp = await client.get(url, params={"q": city, "key": key, "fields": "items.point"})
-            if resp.status_code == 200:
-                data = resp.json()
-                if "result" in data and data["result"].get("items"):
-                    loc = data["result"]["items"][0].get("point")
-                    if loc:
-                        return loc["lat"], loc["lon"]
+        async with httpx.AsyncClient(timeout=timeout) as client:
+            resp = await client.get(TWOGIS_ITEMS_URL, params={**params, "key": key})
+        data = resp.json() if resp.content else {}
     except Exception as e:
-        logger.error(f"Geocoding error: {e}")
+        logger.warning("2GIS request failed: %r", e)
+        return None
+
+    code = (data.get("meta") or {}).get("code", resp.status_code)
+    if code == 200:
+        return data.get("result") or {"total": 0, "items": []}
+    if code == 404:  # 2GIS uses 404 for "no results"
+        return {"total": 0, "items": []}
+    logger.warning("2GIS error %s: %s", code, (data.get("meta") or {}).get("error"))
     return None
 
+
+async def geocode_city(city: str) -> Tuple[float, float] | None:
+    """Geocodes a city/address string to coordinates using 2GIS."""
+    res = await twogis_items({"q": city, "fields": "items.point"})
+    if res and res.get("items"):
+        loc = res["items"][0].get("point")
+        if loc:
+            return float(loc["lat"]), float(loc["lon"])
+    return None
+
+
 async def get_competitors(lat: float, lng: float, keyword: str, radius: int = 1000) -> Dict[str, Any]:
-    """Finds competitors using 2GIS API."""
-    key = get_api_key()
-    
-    result = {
-        "count": -1,
-        "competitors": [],
-        "competitor_gap": 50.0,
+    """Counts businesses of the same type around the point (2GIS search)."""
+    res = await twogis_items({
+        "point": f"{lng},{lat}",       # 2GIS takes lon,lat
+        "radius": radius,
+        "q": keyword,
+        "fields": "items.point,items.reviews",
+        "page_size": 10,
+    }, timeout=15.0)
+
+    if res is None:
+        return {
+            "count": None,
+            "competitors": [],
+            "competitor_gap": None,
+            "radius_m": radius,
+            "source": "unavailable",
+            "explanation": "2GIS data unavailable – an average value is used.",
+        }
+
+    count = int(res.get("total", 0) or 0)
+    competitors = [{
+        "name": p.get("name", "Unknown"),
+        "lat": (p.get("point") or {}).get("lat"),
+        "lng": (p.get("point") or {}).get("lon"),
+        "rating": (p.get("reviews") or {}).get("general_review_count", 0),
+    } for p in (res.get("items") or [])[:10]]
+
+    gap_score = round(max(0.0, 100.0 - count * 5), 2)
+    return {
+        "count": count,
+        "competitors": competitors,
+        "competitor_gap": gap_score,
         "radius_m": radius,
-        "explanation": "2GIS API Key required to run active competitor proximity gap analyses."
+        "source": "2GIS API",
+        "explanation": f"2GIS found {count} '{keyword}' businesses within {radius} m. Competitor gap score: {gap_score}/100.",
     }
-    
-    if not key:
-        return result
-        
-    url = "https://catalog.api.2gis.com/3.0/items"
-    
-    try:
-        async with httpx.AsyncClient(timeout=15.0) as client:
-            # 2GIS API takes lon,lat for point parameter
-            resp = await client.get(
-                url,
-                params={
-                    "point": f"{lng},{lat}",
-                    "radius": radius,
-                    "q": keyword,
-                    "fields": "items.point",
-                    "key": key
-                }
-            )
-            
-            if resp.status_code == 200:
-                data = resp.json()
-                res = data.get("result", {})
-                count = res.get("total", 0)
-                items = res.get("items", [])
-                
-                competitors = []
-                for p in items[:20]:
-                    competitors.append({
-                        "name": p.get("name", "Unknown"),
-                        "lat": p.get("point", {}).get("lat"),
-                        "lng": p.get("point", {}).get("lon"),
-                        "rating": (p.get("reviews") or {}).get("general_review_count", 0)
-                    })
-                
-                # Adjust score roughly
-                gap_score = round(max(0, 100 - count * 5), 2)
-                
-                result = {
-                    "count": count,
-                    "competitors": competitors,
-                    "competitor_gap": gap_score,
-                    "radius_m": radius,
-                    "source": "2GIS API",
-                    "explanation": f"2GIS found {count} '{keyword}' competitors within {radius}m. Competitor gap score: {gap_score}/100."
-                }
-            else:
-                logger.error(f"2GIS API failed: {resp.status_code}")
-                
-    except Exception as e:
-        logger.error(f"2GIS API Error: {e}")
-        
-    return result
+
 
 async def get_foot_traffic_proxy(lat: float, lng: float, radius: int = 400) -> Dict[str, Any]:
     """
-    Since we use 2GIS now, we proxy foot-traffic density by querying all branches 
-    in the direct vicinity and aggregating their count and reviews.
+    Proxy for foot traffic: number of organisations (branches) registered in
+    2GIS within `radius` metres. 350+ organisations → 100 points.
     """
-    key = get_api_key()
-    
-    result = {
-        "score": 50.0,
-        "source": "Fallback Synthetic Traffic Model",
-        "explanation": "Could not access 2GIS API."
-    }
-    
-    if not key:
-        return result
-        
-    url = "https://catalog.api.2gis.com/3.0/items"
-    
-    try:
-        async with httpx.AsyncClient(timeout=15.0) as client:
-            # Query general branches around the point
-            resp = await client.get(
-                url,
-                params={
-                    "point": f"{lng},{lat}",
-                    "radius": radius,
-                    "type": "branch",
-                    "key": key
-                }
-            )
-            
-            if resp.status_code == 200:
-                data = resp.json()
-                res = data.get("result", {})
-                total_pois = res.get("total", 0)
-                
-                # Normalize score based on POIs: 
-                # ~150 POIs nearby is decent (50 score)
-                # ~350+ is excellent (100 score)
-                score = min(100.0, max(0.0, total_pois / 3.5))
-                
-                result = {
-                    "score": round(score, 1),
-                    "source": "2GIS API Proxied Traffic (branch density)",
-                    "explanation": f"Found {total_pois} registered branches/establishments nearby. Higher branch density maps to higher physical traffic. Proxy score: {round(score, 1)}/100."
-                }
-            else:
-                logger.error(f"2GIS proxy search failed: {resp.text}")
-                
-    except Exception as e:
-        logger.error(f"2GIS Traffic parsing error: {e}")
+    res = await twogis_items({
+        "point": f"{lng},{lat}",
+        "radius": radius,
+        "type": "branch",
+        "page_size": 1,
+    }, timeout=15.0)
 
-    return result
+    if res is None:
+        return {
+            "score": None,
+            "poi_count": None,
+            "source": "unavailable",
+            "explanation": "2GIS data unavailable – an average value is used.",
+        }
+
+    total_pois = int(res.get("total", 0) or 0)
+    score = round(min(100.0, max(0.0, total_pois / 3.5)), 1)
+    return {
+        "score": score,
+        "poi_count": total_pois,
+        "source": "2GIS API (organisation density)",
+        "explanation": f"{total_pois} organisations within {radius} m in 2GIS. Traffic proxy score: {score}/100.",
+    }

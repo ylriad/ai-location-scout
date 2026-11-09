@@ -94,12 +94,22 @@ class PersonalScoutAgent:
         if listings:
             # Map listings to candidate format
             from app.tools.rent import _match_district, ALMATY_DISTRICTS, CBD_LAT, CBD_LNG
+            from app.tools.google_maps import geocode_city
+            from app.agent.agent import _in_almaty
+            # Real coordinates of each apartment from its address (2GIS)
+            geo = await asyncio.gather(
+                *[geocode_city(f"{request.city}, {l.get('address', '')}") for l in listings],
+                return_exceptions=True,
+            )
             for i, l in enumerate(listings):
                 district = _match_district(l["address"]) or "Almaly"
-                lat, lng = ALMATY_DISTRICTS.get(district, (CBD_LAT, CBD_LNG))
-                # Add small jitter so they don't overlay
-                lat += (i * 0.0012)
-                lng += (i * 0.0012)
+                if isinstance(geo[i], tuple) and _in_almaty(*geo[i]):
+                    lat, lng = geo[i]
+                else:
+                    lat, lng = ALMATY_DISTRICTS.get(district, (CBD_LAT, CBD_LNG))
+                    # small jitter so they don't overlay
+                    lat += (i * 0.0012)
+                    lng += (i * 0.0012)
                 
                 candidates.append({
                     "id": f"krisha_apt_{i}",
@@ -133,31 +143,31 @@ class PersonalScoutAgent:
             # Distance scoring: 0km = 100, 10km = 50, >20km = 0
             commute_score = max(20.0, min(100.0, 100.0 - (dist_km * 5.0)))
             
-            # Weighted formula
-            # Convenience (30%), Safety (30%), Lifestyle (20%), Commute/Distance (20%)
-            final_score = (
-                scores["convenience_score"] * 0.30 +
-                scores["safety_score"] * 0.30 +
-                scores["lifestyle_score"] * 0.20 +
-                commute_score * 0.20
-            )
-            final_score = round(final_score, 1)
-            
-            # Determine score label
-            from app.tools.scoring import _label
-            label = _label(final_score, request.lang)
-                
             return {
                 **c,
                 "scores": scores,
                 "distance_km": round(dist_km, 2),
                 "commute_score": round(commute_score, 1),
-                "final_score": final_score,
-                "label": label
             }
 
         eval_tasks = [eval_candidate(c) for c in candidates]
         results = await asyncio.gather(*eval_tasks)
+
+        # Missing 2GIS values → average of apartments that did get data (or neutral 50)
+        from app.tools.scoring import _label
+        for key in ("convenience_score", "safety_score", "lifestyle_score"):
+            real = [r["scores"][key] for r in results if r["scores"].get(key) is not None]
+            avg = round(sum(real) / len(real), 1) if real else 50.0
+            for r in results:
+                if r["scores"].get(key) is None:
+                    r["scores"][key] = avg
+                    r["scores_estimated"] = True
+        for r in results:
+            sc = r["scores"]
+            r["final_score"] = round(
+                sc["convenience_score"] * 0.30 + sc["safety_score"] * 0.30 +
+                sc["lifestyle_score"] * 0.20 + r["commute_score"] * 0.20, 1)
+            r["label"] = _label(r["final_score"], request.lang)
 
         # Rank by final score descending
         results.sort(key=lambda x: x["final_score"], reverse=True)
@@ -228,8 +238,8 @@ class PersonalScoutAgent:
                     distance_km=r["distance_km"],
                     directions_url=directions_url,
                     avg_rent_kzt=float(r["price_kzt"]),
-                    min_rent_kzt=float(r["price_kzt"] * 0.9),
-                    max_rent_kzt=float(r["price_kzt"] * 1.1),
+                    min_rent_kzt=float(r["price_kzt"]),
+                    max_rent_kzt=float(r["price_kzt"]),
                     score_explanation=(
                         f"Overall rating: {r['label']} ({r['final_score']}/100). "
                         f"Convenience: {r['scores']['convenience_score']}/100, "

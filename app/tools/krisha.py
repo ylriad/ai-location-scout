@@ -5,6 +5,55 @@ from typing import List, Dict, Any
 
 logger = logging.getLogger(__name__)
 
+import re as _re
+
+# "265 000 〒", "от 3 500 〒 за м²", "45 000 000 ₸" ...
+_PRICE_RE = _re.compile(
+    r'(\d[\d   ]*)\s*(?:〒|₸|тг|тенге)\s*(за\s*(?:кв\.?\s*м|м²|м2)|/\s*м²|/\s*м2)?',
+    _re.IGNORECASE,
+)
+_AREA_RE = _re.compile(r'(\d+(?:[.,]\d+)?)\s*(?:м²|м2|кв\.?\s*м)', _re.IGNORECASE)
+
+
+def parse_area(text: str) -> float | None:
+    """Area in m² from a listing title like 'Помещение · 60 м²'."""
+    m = _AREA_RE.search(text or "")
+    return float(m.group(1).replace(",", ".")) if m else None
+
+
+def parse_price(price_text: str, listing_area: float | None = None) -> tuple[int, int | None]:
+    """
+    Returns (total_price_kzt, price_per_m2_kzt).
+
+    Krisha cards often show BOTH the full price and a per-m² price
+    ("265 000 〒" + "5 300 〒 за м²"). The full price is the first amount
+    WITHOUT a per-m² suffix. Only if a card shows nothing but a per-m² price
+    do we multiply it by the listing's own area (from its title).
+    """
+    total, per_m2 = None, None
+    for m in _PRICE_RE.finditer(price_text or ""):
+        val = int(_re.sub(r"\D", "", m.group(1)) or 0)
+        if not val:
+            continue
+        if m.group(2):
+            per_m2 = per_m2 or val
+        elif total is None:
+            total = val
+    if total is None and per_m2 and listing_area:
+        total = round(per_m2 * listing_area)
+    if total is None and not per_m2:
+        # No currency sign at all – take the first number as the full price.
+        nums = _re.findall(r"\d[\d   ]*", price_text or "")
+        if nums:
+            total = int(_re.sub(r"\D", "", nums[0]) or 0)
+    return int(total or 0), per_m2
+
+
+def area_range(area_size: int) -> tuple[int, int]:
+    """Search window around the requested area: −30% … +50%."""
+    area_size = max(10, int(area_size or 50))
+    return max(10, int(area_size * 0.7)), int(area_size * 1.5) + 1
+
 # Map our app's business types to krisha.kz URL paths
 BUSINESS_TYPE_TO_KRISHA = {
     "coffee_shop": "obshchepit",
@@ -34,15 +83,8 @@ async def scrape_krisha_listings(city: str, business_type: str, limit: int = 5, 
         "Accept-Language": "en-US,en;q=0.9,ru;q=0.8",
     }
     
-    if area_size <= 20:
-        min_area, max_area = 20, 49
-    elif area_size <= 50:
-        min_area, max_area = 50, 99
-    elif area_size <= 100:
-        min_area, max_area = 100, 199
-    else:
-        min_area, max_area = 200, 99999
-        
+    min_area, max_area = area_range(area_size)
+
     params = f"?das[live.square][from]={min_area}"
     if max_area < 99999:
         params += f"&das[live.square][to]={max_area}"
@@ -80,9 +122,8 @@ async def scrape_krisha_listings(city: str, business_type: str, limit: int = 5, 
                 title = title_el.text.strip()
                 
                 # Filter out promoted listings that bypass Krisha URL filters
-                sqm_match = re.search(r'(\d+(?:\.\d+)?)\s*м²', title)
-                if sqm_match:
-                    sqm = float(sqm_match.group(1))
+                sqm = parse_area(title)
+                if sqm:
                     if sqm < min_area or sqm > max_area:
                         continue
                 price_el = card.select_one('.a-card__price')
@@ -97,23 +138,16 @@ async def scrape_krisha_listings(city: str, business_type: str, limit: int = 5, 
                     
                 address = address_el.text.strip() if address_el else city
 
-                # Parse price (roughly) from text like "540 000 〒 за месяц"
-                price_val = 0
-                import re
-                nums = re.findall(r'\d+', price_text.replace('\xa0', '').replace(' ', ''))
-                if nums:
-                    price_val = int(nums[0])
-                    
-                    # Convert per sq.m rent to approximate monthly total
-                    pt = price_text.lower()
-                    if "за кв" in pt or "за м²" in pt or "/м²" in pt or "за м2" in pt:
-                        price_val = price_val * area_size
-                
+                listing_area = parse_area(title)
+                price_val, per_m2 = parse_price(price_text, listing_area)
+
                 listings.append({
                     "title": title,
                     "address": address,
                     "price_kzt_str": price_text,
                     "price_kzt": price_val,
+                    "price_per_m2": per_m2,
+                    "area_m2": listing_area,
                     "link": link,
                     "source": "krisha.kz"
                 })
@@ -142,16 +176,8 @@ async def scrape_krisha_apartments(
         "Accept-Language": "en-US,en;q=0.9,ru;q=0.8",
     }
     
-    # Area thresholds matching the business flow pattern
-    if area_size <= 20:
-        min_area, max_area = 20, 49
-    elif area_size <= 50:
-        min_area, max_area = 50, 99
-    elif area_size <= 100:
-        min_area, max_area = 100, 199
-    else:
-        min_area, max_area = 200, 99999
-        
+    min_area, max_area = area_range(area_size)
+
     params = f"?das[live.square][from]={min_area}"
     if max_area < 99999:
         params += f"&das[live.square][to]={max_area}"
@@ -186,9 +212,8 @@ async def scrape_krisha_apartments(
                 title = title_el.text.strip()
                 
                 # Check square meters
-                sqm_match = re.search(r'(\d+(?:\.\d+)?)\s*м²', title)
-                if sqm_match:
-                    sqm = float(sqm_match.group(1))
+                sqm = parse_area(title)
+                if sqm:
                     if sqm < min_area or sqm > max_area:
                         continue
                         
@@ -202,16 +227,15 @@ async def scrape_krisha_apartments(
                 if title_el and title_el.has_attr("href"):
                     link = "https://krisha.kz" + title_el["href"]
                     
-                price_val = 0
-                nums = re.findall(r'\d+', price_text.replace('\xa0', '').replace(' ', ''))
-                if nums:
-                    price_val = int(nums[0])
-                    
+                listing_area = parse_area(title)
+                price_val, _ = parse_price(price_text, listing_area)
+
                 listings.append({
                     "title": title,
                     "address": address,
                     "price_kzt_str": price_text,
                     "price_kzt": price_val,
+                    "area_m2": listing_area,
                     "link": link,
                     "source": "krisha.kz"
                 })

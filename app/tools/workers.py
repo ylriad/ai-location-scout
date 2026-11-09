@@ -74,21 +74,41 @@ RESUME_PAGE_FUNCTION = r"""
                 }
             """
 
+# Fallback when hh.ru gives no data (since April 2026 the public vacancy API
+# answers 403 without an employer/partner token). Official statistics:
+# Bureau of National Statistics (BNS) of Kazakhstan, median monthly wage by
+# economic activity, 2026 (published by NUR.KZ on 04.11.2026).
+BNS_SECTOR_MEDIAN = {
+    "coffee shop":        ("food",   335_605),
+    "restaurant":         ("food",   335_605),
+    "retail store":       ("trade",  345_472),
+    "grocery/supermarket":("trade",  345_472),
+    "fitness center/gym": ("arts",   251_749),
+    "salon/spa":          ("other",  409_352),
+}
+BNS_ALMATY_MEDIAN = 429_633
+BNS_SECTOR_NAMES = {
+    "food":  {"en": "accommodation & food services", "ru": "услуги по проживанию и питанию", "kk": "тұру және тамақтану қызметтері"},
+    "trade": {"en": "wholesale & retail trade",      "ru": "оптовая и розничная торговля",    "kk": "көтерме және бөлшек сауда"},
+    "arts":  {"en": "arts, entertainment & recreation", "ru": "искусство, развлечения и отдых", "kk": "өнер, ойын-сауық және демалыс"},
+    "other": {"en": "other service activities",       "ru": "предоставление прочих видов услуг", "kk": "өзге де қызметтер"},
+}
+
 TEXT = {
     "en": {"market": "Labour market", "vacancies": "open vacancies", "median": "Median salary",
            "range": "Range", "examples": "Who is hiring now", "candidates": "Candidates (public hh.kz resumes)",
            "no_cands": "Live resume parsing is unavailable right now — use the links below.",
-           "no_market": "hh.ru vacancy data is unavailable right now.",
+           "no_market": "hh.ru vacancy data is unavailable right now.", "bns_title": "Official average (hh.ru data unavailable)", "bns_sector": "Median wage in the sector", "bns_city": "Median wage in Almaty, all sectors", "bns_note": "Source: Bureau of National Statistics of Kazakhstan, 2026. hh.ru closed its public vacancy API in April 2026; live salaries require an employer token (HH_APP_TOKEN).",
            "search": "Search", "on_hh": "on HeadHunter", "note": "Salary data: official hh.ru API (vacancies with a stated salary)."},
     "ru": {"market": "Рынок труда", "vacancies": "открытых вакансий", "median": "Медианная зарплата",
            "range": "Диапазон", "examples": "Кто сейчас нанимает", "candidates": "Кандидаты (открытые резюме hh.kz)",
            "no_cands": "Живой парсинг резюме сейчас недоступен — воспользуйтесь ссылками ниже.",
-           "no_market": "Данные о вакансиях hh.ru сейчас недоступны.",
+           "no_market": "Данные о вакансиях hh.ru сейчас недоступны.", "bns_title": "Официальная статистика (данные hh.ru недоступны)", "bns_sector": "Медианная зарплата в отрасли", "bns_city": "Медианная зарплата в Алматы, все отрасли", "bns_note": "Источник: Бюро национальной статистики РК, 2026. С апреля 2026 hh.ru закрыл публичный API вакансий; живые зарплаты доступны по токену работодателя (HH_APP_TOKEN).",
            "search": "Искать", "on_hh": "на HeadHunter", "note": "Зарплаты: официальный API hh.ru (вакансии с указанной зарплатой)."},
     "kk": {"market": "Еңбек нарығы", "vacancies": "ашық вакансия", "median": "Медиандық жалақы",
            "range": "Диапазон", "examples": "Қазір кім жалдап жатыр", "candidates": "Үміткерлер (hh.kz ашық түйіндемелері)",
            "no_cands": "Түйіндемелерді талдау қазір қолжетімсіз — төмендегі сілтемелерді пайдаланыңыз.",
-           "no_market": "hh.ru вакансия деректері қазір қолжетімсіз.",
+           "no_market": "hh.ru вакансия деректері қазір қолжетімсіз.", "bns_title": "Ресми статистика (hh.ru деректері қолжетімсіз)", "bns_sector": "Саладағы медиандық жалақы", "bns_city": "Алматыдағы медиандық жалақы, барлық салалар", "bns_note": "Дереккөз: ҚР Ұлттық статистика бюросы, 2026. 2026 жылдың сәуірінен hh.ru ашық вакансия API-ін жапты; нақты жалақылар үшін жұмыс беруші токені қажет (HH_APP_TOKEN).",
            "search": "Іздеу", "on_hh": "HeadHunter-де", "note": "Жалақы: hh.ru ресми API (жалақысы көрсетілген вакансиялар)."},
 }
 
@@ -109,6 +129,8 @@ async def _hh_vacancy_market(keyword: str, city: str) -> dict | None:
         async with httpx.AsyncClient(timeout=10.0) as client:
             resp = await client.get(HH_API_URL, params=params, headers=headers)
             if resp.status_code != 200:
+                # 403 = hh.ru closed anonymous vacancy search (April 2026);
+                # an employer/partner token is required (HH_APP_TOKEN).
                 logger.warning("hh.ru API %s: %s", resp.status_code, resp.text[:200])
                 return None
             data = resp.json()
@@ -211,7 +233,14 @@ async def get_workers(business_type: str, city: str, lang: str = "en") -> dict:
                 md += f"- {v['name']} — {v['employer']}, ~{_fmt_kzt(v['salary'])} [hh.kz]({v['url']})\n"
             md += "\n"
     else:
-        md += f"*{t['no_market']}*\n\n"
+        sector_key, sector_median = BNS_SECTOR_MEDIAN.get(bt_key, ("other", BNS_ALMATY_MEDIAN))
+        lang_key = (lang or "en").lower() if (lang or "en").lower() in ("en", "ru", "kk") else "en"
+        md += f"**{t['bns_title']}**\n\n"
+        md += f"- **{t['bns_sector']}** ({BNS_SECTOR_NAMES[sector_key][lang_key]}): {_fmt_kzt(sector_median)}\n"
+        md += f"- **{t['bns_city']}**: {_fmt_kzt(BNS_ALMATY_MEDIAN)}\n\n"
+        md += f"*{t['bns_note']}*\n\n"
+        market = {"source": "BNS", "median": None, "sector_median": sector_median,
+                  "city_median": BNS_ALMATY_MEDIAN, "estimated": True}
 
     md += f"### 🧑‍💼 {t['candidates']}\n\n"
     if candidates:
@@ -226,5 +255,6 @@ async def get_workers(business_type: str, city: str, lang: str = "en") -> dict:
     md += "---\n"
     for kw in top_keywords:
         md += f"🔎 [{t['search']} «{kw}» {t['on_hh']}]({resume_url(kw)})\n\n"
-    md += f"*{t['note']}*\n"
+    if market and market.get("source") != "BNS":
+        md += f"*{t['note']}*\n"
     return {"workers_md": md, "market": market, "candidates": candidates}

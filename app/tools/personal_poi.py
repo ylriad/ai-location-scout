@@ -1,7 +1,6 @@
 import logging
 import httpx
 import asyncio
-import hashlib
 import math
 from typing import Tuple, Dict, Any
 from app.tools.google_maps import get_api_key
@@ -28,21 +27,11 @@ async def geocode_destination(destination: str) -> Tuple[float, float]:
             return coords
             
     # Try 2GIS geocoding
-    key = get_api_key()
-    if key:
-        url = "https://catalog.api.2gis.com/3.0/items"
-        try:
-            async with httpx.AsyncClient(timeout=10.0) as client:
-                resp = await client.get(url, params={"q": destination, "key": key, "fields": "items.point"})
-                if resp.status_code == 200:
-                    data = resp.json()
-                    if "result" in data and data["result"].get("items"):
-                        loc = data["result"]["items"][0].get("point")
-                        if loc:
-                            return float(loc["lat"]), float(loc["lon"])
-        except Exception as e:
-            logger.error(f"Error geocoding destination '{destination}': {e}")
-            
+    from app.tools.google_maps import geocode_city
+    loc = await geocode_city(destination if "алматы" in dest_clean or "almaty" in dest_clean else f"Алматы, {destination}")
+    if loc:
+        return loc
+
     # Fallback default: Almaty Center (KBTU)
     return LANDMARK_COORDINATES["kbtu"]
 
@@ -56,48 +45,28 @@ def haversine_distance(lat1: float, lon1: float, lat2: float, lon2: float) -> fl
     c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
     return R * c
 
-async def get_poi_count(lat: float, lng: float, query: str) -> int:
-    """Queries 2GIS for the count of a POI rubric or keyword around a point."""
-    key = get_api_key()
-    if not key:
-        # Stable deterministic mock count based on coords + query hash
-        h = int(hashlib.md5(f"{query}-{lat}-{lng}".encode("utf-8")).hexdigest(), 16)
-        return (h % 15) + 3
-        
-    url = "https://catalog.api.2gis.com/3.0/items"
-    try:
-        async with httpx.AsyncClient(timeout=10.0) as client:
-            resp = await client.get(
-                url,
-                params={
-                    "point": f"{lng},{lat}",
-                    "radius": 1000,
-                    "q": query,
-                    "key": key
-                }
-            )
-            if resp.status_code == 200:
-                return resp.json().get("result", {}).get("total", 0)
-    except Exception as e:
-        logger.error(f"Error fetching POI count for '{query}': {e}")
-    return 5
+async def get_poi_count(lat: float, lng: float, query: str) -> int | None:
+    """Number of 2GIS objects matching `query` within 1 km, or None if 2GIS is unavailable."""
+    from app.tools.google_maps import twogis_items
+    res = await twogis_items({"point": f"{lng},{lat}", "radius": 1000, "q": query, "page_size": 1})
+    if res is None:
+        return None
+    return int(res.get("total", 0) or 0)
 
-async def get_personal_scores(lat: float, lng: float) -> Dict[str, float]:
-    """Calculates Safety, Convenience, and Entertainment scores."""
-    # Gather counts in parallel
-    conv_task = get_poi_count(lat, lng, "аптека, магазин, школа, детский сад")
-    safe_task = get_poi_count(lat, lng, "детская площадка, полиция, общественные организации")
-    ent_task = get_poi_count(lat, lng, "кафе, ресторан, парк, развлечения")
-    
-    conv_cnt, safe_cnt, ent_cnt = await asyncio.gather(conv_task, safe_task, ent_task)
-    
-    # Map raw counts to 0-100 scales
-    conv_score = min(100.0, max(40.0, conv_cnt * 6.5))
-    safe_score = min(100.0, max(45.0, safe_cnt * 12.0))
-    ent_score = min(100.0, max(35.0, ent_cnt * 5.0))
-    
+
+async def get_personal_scores(lat: float, lng: float) -> Dict[str, float | None]:
+    """Convenience, safety and lifestyle scores (0–100). None = no 2GIS data (agent uses an average)."""
+    conv_cnt, safe_cnt, ent_cnt = await asyncio.gather(
+        get_poi_count(lat, lng, "аптека, магазин, школа, детский сад"),
+        get_poi_count(lat, lng, "детская площадка, полиция, общественные организации"),
+        get_poi_count(lat, lng, "кафе, ресторан, парк, развлечения"),
+    )
+
+    def scale(cnt, mult, floor):
+        return None if cnt is None else round(min(100.0, max(floor, cnt * mult)), 1)
+
     return {
-        "convenience_score": round(conv_score, 1),
-        "safety_score": round(safe_score, 1),
-        "lifestyle_score": round(ent_score, 1)
+        "convenience_score": scale(conv_cnt, 6.5, 40.0),
+        "safety_score":      scale(safe_cnt, 12.0, 45.0),
+        "lifestyle_score":   scale(ent_cnt, 5.0, 35.0),
     }

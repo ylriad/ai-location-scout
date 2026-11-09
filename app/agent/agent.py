@@ -94,29 +94,52 @@ async def _evaluate_candidate(
     # Use Census data exactly for demographics fit factor!
     demo = await get_demographics(lat, lng)
 
-    # Assemble factors for scoring
-    factors = {
-        "traffic_score":    traffic_result.get("score", 50.0),
-        "competitor_gap":   competitor_result.get("competitor_gap", 50.0),
-        "rent_affordable":  rent_result.get("rent_affordable", 50.0),
-        "demographics_fit": demo.get("demographics_fit_raw", 50.0),
-        "area_size":        area_size,
-        "district":         rent_result.get("district", "Unknown"),
-    }
-    # Dynamic synthetic scoring model imported safely
-    from app.tools.scoring import score_location
-    score_result = await score_location(factors)
-
+    # Scoring happens in the agent after missing values are replaced by averages.
     return {
         **candidate,
+        "area_size":         area_size,
         "budget":            budget,
         "business_type":     business_type,
         "traffic_result":    traffic_result,
         "competitor_result": competitor_result,
         "rent_result":       rent_result,
-        "score_result":      score_result,
         "demo_result":       demo
     }
+
+
+NEUTRAL_DEFAULT = 50.0
+
+
+def _fill_missing_with_averages(results: list[dict]) -> None:
+    """
+    When 2GIS gave no data for some candidates (no key, quota exhausted,
+    timeout) we do NOT invent numbers: the missing value becomes the mean of
+    the candidates that did get real data, or a neutral 50 if none did.
+    The result is flagged so the UI/report can say it is an average.
+    """
+    for res_key, val_key in (("traffic_result", "score"), ("competitor_result", "competitor_gap")):
+        real = [r[res_key][val_key] for r in results if r[res_key].get(val_key) is not None]
+        avg = round(sum(real) / len(real), 1) if real else NEUTRAL_DEFAULT
+        note = (f"Average of {len(real)} locations with 2GIS data" if real
+                else "No 2GIS data – neutral average used")
+        for r in results:
+            if r[res_key].get(val_key) is None:
+                r[res_key] = {**r[res_key], val_key: avg, "estimated": True,
+                              "source": "average", "explanation": f"{note}: {avg}/100."}
+                if res_key == "traffic_result":
+                    r[res_key]["score"] = avg
+
+
+async def _score(r: dict) -> dict:
+    from app.tools.scoring import score_location
+    return await score_location({
+        "traffic_score":    r["traffic_result"].get("score", NEUTRAL_DEFAULT),
+        "competitor_gap":   r["competitor_result"].get("competitor_gap", NEUTRAL_DEFAULT),
+        "rent_affordable":  r["rent_result"].get("rent_affordable", NEUTRAL_DEFAULT),
+        "demographics_fit": r["demo_result"].get("demographics_fit_raw", NEUTRAL_DEFAULT),
+        "area_size":        r.get("area_size", 50),
+        "district":         r["rent_result"].get("district", "Unknown"),
+    })
 
 
 # ---------------------------------------------------------------------------
@@ -175,6 +198,8 @@ class LocationScoutAgent:
                 "lng": lng,
                 "zone": "commercial",
                 "rent_kzt": l.get("price_kzt", 0),
+                "listing_area_m2": l.get("area_m2"),
+                "price_per_m2": l.get("price_per_m2"),
                 "krisha_link": l.get("link", "")
             })
             
@@ -211,6 +236,11 @@ class LocationScoutAgent:
 
         if not results:
             raise RuntimeError("All candidate evaluations failed. Cannot produce a report.")
+
+        _fill_missing_with_averages(results)
+        scores = await asyncio.gather(*[_score(r) for r in results])
+        for r, sc in zip(results, scores):
+            r["score_result"] = sc
 
         # ── Step 3: Rank by final_score ───────────────────────────────────
         results.sort(
@@ -337,7 +367,7 @@ def _to_location_result(r: dict, is_demo: bool = False, lang: str = "en") -> Loc
         avg_rent_kzt          = rr.get("avg_rent_kzt", 0.0),
         min_rent_kzt          = rr.get("min_rent_kzt", 0.0),
         max_rent_kzt          = rr.get("max_rent_kzt", 0.0),
-        competitor_count      = cr.get("count", -1),
+        competitor_count      = cr.get("count") if cr.get("count") is not None else -1,
         competitors_nearby    = cr.get("competitors", []),
         traffic_source        = tr.get("source", ""),
         est_monthly_revenue   = round(monthly_rev, 2),

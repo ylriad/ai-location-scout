@@ -50,8 +50,8 @@ def _build_prompt(
   - Rent Affordability: {score_info.get('breakdown', {}).get('rent_affordable', {}).get('raw', 'N/A')}/100 (weight 20%)
   - Demographics Fit: {score_info.get('breakdown', {}).get('demographics_fit', {}).get('raw', 'N/A')}/100 (weight 20%)
 - **Est. Monthly Rent**: {rent_info.get('avg_rent_kzt', 'N/A')} KZT (range {rent_info.get('min_rent_kzt', 'N/A')}–{rent_info.get('max_rent_kzt', 'N/A')} KZT)
-- **Nearby Competitors**: {comp.get('count', 'N/A')} within {comp.get('radius_m', 1000)} m
-- **Foot Traffic score**: {traffic.get('score', 'N/A')}/100 ({traffic.get('source', '')})
+- **Nearby Competitors**: {comp.get('count') if comp.get('count') is not None else 'no 2GIS data (average used)'} within {comp.get('radius_m', 1000)} m
+- **Foot Traffic score**: {traffic.get('score', 'N/A')}/100 ({'AVERAGE – no 2GIS data for this point' if traffic.get('estimated') else traffic.get('source', '')})
 - **Pre-computed ROI**: revenue {roi['monthly_revenue']:,.0f} KZT/mo, profit {roi['monthly_profit']:,.0f} KZT/mo, annual ROI {roi['annual_roi_pct']}%
 """
         location_blocks.append(block)
@@ -86,7 +86,7 @@ Please write a concise yet comprehensive business report (600–900 words) cover
 4. **ROI Estimates** – use exactly the pre-computed ROI figures given for each location above (do not recalculate them); briefly explain what drives them.
 5. **Final Recommendation** – decisive one-paragraph recommendation with the top location.
 
-Data sources: 2GIS Catalog API (business density, competitors), Krisha.kz (listings and rent), modelled district demographics. Do not mention Google Maps or the US Census.
+Data sources: 2GIS Catalog API (business density, competitors), Krisha.kz (listings and rent), modelled district demographics. Do not mention Google Maps or the US Census. If a value is marked AVERAGE, say plainly that it is an average estimate, not measured data.
 
 Write in a professional, confident tone suitable for an investor deck.
 Use markdown headers and bullet points for clarity.
