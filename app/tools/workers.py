@@ -12,7 +12,10 @@ APIFY_TOKEN  = os.getenv("APIFY_API_TOKEN", "")
 HH_APP_TOKEN = os.getenv("HH_APP_TOKEN", "")   # optional hh.ru application token
 
 HH_API_URL   = "https://api.hh.ru/vacancies"
-HH_HEADERS   = {"User-Agent": "LocationScout/1.0", "HH-User-Agent": "LocationScout/1.0"}
+# hh.ru expects "AppName/Version (contact e-mail)", e.g. "AILocationScout/1.0 (me@mail.kz)".
+# Set HH_USER_AGENT in the environment; never hardcode personal e-mails here.
+HH_USER_AGENT = os.getenv("HH_USER_AGENT", "AILocationScout/1.0").strip()
+HH_HEADERS   = {"User-Agent": HH_USER_AGENT, "HH-User-Agent": HH_USER_AGENT}
 # hh.ru area ids: Almaty 160, Astana 159, whole Kazakhstan 40
 HH_AREAS     = {"almaty": 160, "astana": 159}
 APIFY_TIMEOUT_S = 60
